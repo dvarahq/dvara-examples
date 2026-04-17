@@ -1,0 +1,19 @@
+{
+  "name": "dvara-sdk-examples",
+  "version": "1.0.0",
+  "description": "Dvara Gateway — JavaScript/TypeScript SDK integration examples",
+  "type": "module",
+  "scripts": {
+    "openai": "tsx openai_example.ts",
+    "vercel-ai": "tsx vercel_ai_example.ts"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "ai": "^4.0.0",
+    "@ai-sdk/openai": "^1.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

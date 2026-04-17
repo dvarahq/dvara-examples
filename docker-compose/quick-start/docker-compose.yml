@@ -1,0 +1,74 @@
+# Dvara Gateway quick-start — gateway + admin UI + PostgreSQL + OpenAI.
+# The fastest path to a running gateway. OpenAI is the only provider.
+# For more providers (Anthropic, Gemini, etc.) see ../multi-provider.
+#
+# Usage:
+#   cp .env.example .env   # set GATEWAY_LICENSE_KEY and OPENAI_API_KEY
+#   docker compose up -d
+#   curl http://localhost:8080/status
+#   open http://localhost:8090
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-llm-proxy:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GATEWAY_DATA_PLANE_REQUIRE_API_KEY: ${GATEWAY_DATA_PLANE_REQUIRE_API_KEY:-false}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/status"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-console:
+    image: ghcr.io/dvarahq/dvara/dvara-admin-app:latest
+    pull_policy: always
+    ports:
+      - "8090:8090"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      GATEWAY_AUDIT_HMAC_SECRET: ${GATEWAY_AUDIT_HMAC_SECRET:-default-dev-secret-change-in-production}
+      GATEWAY_SERVER_URL: http://dvara-llm-proxy:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-llm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:

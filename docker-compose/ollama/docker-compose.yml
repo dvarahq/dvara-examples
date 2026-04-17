@@ -1,0 +1,99 @@
+# Local models with Ollama — no provider API keys, no external LLM calls.
+# Everything runs on your machine. A Dvara license key is still required.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d
+#   docker compose exec ollama ollama pull llama3.2
+#   curl -s -X POST http://localhost:8080/v1/chat/completions \
+#     -H "Content-Type: application/json" \
+#     -d '{"model": "ollama/llama3.2", "messages": [{"role": "user", "content": "Hello!"}]}' | jq .
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # Uncomment for NVIDIA GPU passthrough:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  dvara-llm-proxy:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+      OLLAMA_ENABLED: "true"
+      OLLAMA_BASE_URL: http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/status"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-console:
+    image: ghcr.io/dvarahq/dvara/dvara-admin-app:latest
+    pull_policy: always
+    ports:
+      - "8090:8090"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      GATEWAY_AUDIT_HMAC_SECRET: ${GATEWAY_AUDIT_HMAC_SECRET:-default-dev-secret-change-in-production}
+      GATEWAY_SERVER_URL: http://dvara-llm-proxy:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-llm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:
+  ollama-data:

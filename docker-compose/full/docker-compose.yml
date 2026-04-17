@@ -1,0 +1,97 @@
+# Full stack — gateway + admin UI + MCP proxy + PostgreSQL.
+# Every Dvara component running together, with all platform features available:
+# policies, PII, guardrails, audit, budgets, and MCP tool governance.
+#
+# Usage:
+#   cp .env.example .env   # edit with your keys
+#   docker compose up -d
+#   docker compose ps      # all 4 services should be healthy
+#   curl http://localhost:8080/status
+#   curl http://localhost:8070/actuator/health/liveness
+#   open http://localhost:8090
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-llm-proxy:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/status"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-console:
+    image: ghcr.io/dvarahq/dvara/dvara-admin-app:latest
+    pull_policy: always
+    ports:
+      - "8090:8090"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      GATEWAY_AUDIT_HMAC_SECRET: ${GATEWAY_AUDIT_HMAC_SECRET:-default-dev-secret-change-in-production}
+      GATEWAY_SERVER_URL: http://dvara-llm-proxy:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-llm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-mcp-proxy:
+    image: ghcr.io/dvarahq/dvara/dvara-mcp-gateway:latest
+    pull_policy: always
+    ports:
+      - "8070:8070"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-llm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8070/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:

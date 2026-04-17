@@ -1,0 +1,84 @@
+# Multi-provider stack — OpenAI + Anthropic out of the box.
+#
+# Dvara auto-registers a provider whenever its API key env var is set.
+# To add more (Gemini, Mistral, Cohere, Groq, Azure OpenAI, Bedrock,
+# Ollama), add the matching env var(s) below and the corresponding entry
+# in .env. See https://dvarahq.com/docs/core-concepts/providers for the
+# full list and per-provider setup.
+#
+# Usage:
+#   cp .env.example .env   # edit with whichever keys you have
+#   docker compose up -d
+#   curl -s http://localhost:8080/v1/models | jq '.data[].id'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-llm-proxy:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Add more providers here — uncomment and set in .env:
+      # GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      # COHERE_API_KEY: ${COHERE_API_KEY:-}
+      # GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      # AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/status"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-console:
+    image: ghcr.io/dvarahq/dvara/dvara-admin-app:latest
+    pull_policy: always
+    ports:
+      - "8090:8090"
+    environment:
+      GATEWAY_LICENSE_KEY: ${GATEWAY_LICENSE_KEY}
+      GATEWAY_AUDIT_HMAC_SECRET: ${GATEWAY_AUDIT_HMAC_SECRET:-default-dev-secret-change-in-production}
+      GATEWAY_SERVER_URL: http://dvara-llm-proxy:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-llm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:

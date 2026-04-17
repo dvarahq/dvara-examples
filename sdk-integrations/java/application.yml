@@ -1,0 +1,13 @@
+# Spring AI configuration for Dvara Gateway
+# Add to your Spring Boot application's application.yml
+
+spring:
+  ai:
+    openai:
+      base-url: ${DVARA_URL:http://localhost:8080/v1}
+      api-key: ${DVARA_API_KEY:your-dvara-api-key}
+      chat:
+        options:
+          model: gpt-4o
+          temperature: 0.7
+          max-tokens: 1024
