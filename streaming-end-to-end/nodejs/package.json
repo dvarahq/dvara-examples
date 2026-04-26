@@ -1,0 +1,12 @@
+{
+  "name": "dvara-streaming-end-to-end",
+  "version": "1.0.0",
+  "description": "Runnable SSE consumer demo for Dvara Gateway streaming chat completions.",
+  "type": "module",
+  "scripts": {
+    "start": "node streaming_demo.mjs"
+  },
+  "dependencies": {
+    "openai": "^4.50.0"
+  }
+}
