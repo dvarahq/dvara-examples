@@ -1,0 +1,98 @@
+# Datadog OpenMetrics integration for DVARA AI Gateway
+#
+# Place this file in your Datadog Agent's conf.d/openmetrics.d/ directory.
+# Scrapes Prometheus metrics from DVARA's /actuator/prometheus endpoint and
+# forwards them to Datadog.
+#
+# See: https://docs.datadoghq.com/integrations/openmetrics/
+
+init_config:
+
+instances:
+  # ---- Gateway server :8080 ----
+  #
+  # `/actuator/prometheus` is locked down behind Bearer auth on
+  # DVARA rc24+ (per dvarahq/dvara#665). Pass the
+  # `GATEWAY_METRICS_API_KEY` value as a Bearer in the `headers:`
+  # block below. The Datadog Agent's secret backend (`ENC[…]`
+  # syntax — see https://docs.datadoghq.com/agent/configuration/secrets-management/)
+  # is the production-grade way to inject this without hardcoding
+  # it in a Git-tracked file:
+  #
+  #   headers:
+  #     Authorization: "Bearer ENC[dvara_metrics_api_key]"
+  #
+  # For dev / local agent installs, an inline literal works:
+  #
+  #   headers:
+  #     Authorization: "Bearer <paste the GATEWAY_METRICS_API_KEY here>"
+  #
+  - openmetrics_endpoint: http://gateway-server:8080/actuator/prometheus
+    namespace: dvara
+    headers:
+      Authorization: "Bearer ENC[dvara_metrics_api_key]"
+    metrics:
+      # Request & response volume + latency
+      - gateway_requests_total
+      - gateway_latency_seconds
+      # Token attribution
+      - gateway_tokens_total
+      # Provider health
+      - gateway_provider_errors_total
+      - gateway_retries_total
+      - gateway_fallbacks_total
+      # FinOps — cost + budget
+      - gateway_cost_dollars_total
+      - gateway_budget_blocked_total
+      - gateway_budget_soft_alert_total
+      - gateway_budget_warning_total
+      - gateway_model_downgrades_total
+      - gateway_cost_anomaly_total
+      # Policy + guardrails
+      - gateway_policy_shadow_divergence_total
+      - gateway_guardrail_blocked_total
+      - gateway_guardrail_flagged_total
+      # Schema validation + context window
+      - gateway_schema_validations_total
+      - gateway_schema_retries_total
+      - gateway_context_window_warnings_total
+      - gateway_context_window_pruned_total
+      # Routing — priority + canary + shadow
+      - gateway_priority_requests_total
+      - gateway_priority_throttled_total
+      - gateway_canary_requests_total
+      - gateway_shadow_requests_total
+      # MCP (proxied via gateway-server)
+      - mcp_tool_calls_total
+      - mcp_tool_call_latency_seconds
+      - mcp_agent_loop_detected_total
+      - mcp_agent_sessions_killed_total
+      - mcp_approval_requests_total
+      - mcp_approval_granted_total
+      - mcp_approval_denied_total
+      - mcp_approval_timeout_total
+      # Security
+      - gateway_mcp_injection_detections_total
+    tags:
+      - service:dvara-gateway
+      - env:production
+
+  # ---- MCP Proxy server :8070 (if running separately) ----
+  #
+  # Same Bearer requirement — #667 brought mcp-proxy under the
+  # same actuator chain as gateway-server.
+  - openmetrics_endpoint: http://mcp-proxy-server:8070/actuator/prometheus
+    namespace: dvara
+    headers:
+      Authorization: "Bearer ENC[dvara_metrics_api_key]"
+    metrics:
+      - mcp_requests_total
+      - mcp_latency_seconds
+      - mcp_errors_total
+      - mcp_approval_requests_total
+      - mcp_approval_granted_total
+      - mcp_approval_denied_total
+      - mcp_approval_timeout_total
+    tags:
+      - service:dvara-mcp-proxy
+      - env:production

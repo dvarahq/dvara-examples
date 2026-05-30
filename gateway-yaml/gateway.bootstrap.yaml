@@ -1,0 +1,51 @@
+# Bootstrap configuration for DVARA AI Gateway
+#
+# Seeds tenants, API keys, and routes into the database on first startup.
+# Set GATEWAY_BOOTSTRAP_FILE=./bootstrap.yaml to enable.
+#
+# Idempotent: skips seeding if the database already has configuration
+# (config version > 0 from a previous startup).
+#
+# Env var references (${VAR} or ${VAR:-default}) are resolved at startup.
+
+tenants:
+  - id: acme-corp
+    name: Acme Corp
+    status: active
+
+  - id: internal
+    name: Internal Team
+    status: active
+
+api_keys:
+  - tenant: acme-corp
+    name: production-key
+    key: ${ACME_API_KEY}                   # static key from env var
+    scopes: [completions:write]
+
+  - tenant: acme-corp
+    name: staging-key
+    generate: true                         # auto-generated, printed at startup
+
+  - tenant: internal
+    name: dev-key
+    generate: true
+
+routes:
+  - id: gpt-route
+    model: "gpt*"
+    provider: openai
+
+  - id: claude-balanced
+    model: "claude*"
+    strategy: weighted
+    providers:
+      - provider: anthropic
+        weight: 70
+      - provider: bedrock
+        weight: 30
+    fallback: openai
+
+  - id: gemini-route
+    model: "gemini*"
+    provider: gemini

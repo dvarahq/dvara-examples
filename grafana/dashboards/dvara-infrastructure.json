@@ -1,0 +1,232 @@
+{
+  "dashboard": {
+    "title": "Dvara Infrastructure",
+    "description": "Hazelcast rate limiter, PostgreSQL NOTIFY config refresh, and cluster health",
+    "tags": ["dvara", "infrastructure", "hazelcast", "config-sync"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": { "from": "now-1h", "to": "now" },
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "Rate Limit Decisions / sec",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(gateway_rate_limit_allowed_total[1m])",
+            "legendFormat": "allowed ({{reason}})"
+          },
+          {
+            "expr": "rate(gateway_rate_limit_denied_total[1m])",
+            "legendFormat": "denied ({{reason}})"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "reqps" }
+        }
+      },
+      {
+        "title": "Rate Limit Errors / sec",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(gateway_rate_limit_errors_total[1m])",
+            "legendFormat": "errors ({{reason}})"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "reqps", "color": { "mode": "fixed", "fixedColor": "red" } }
+        }
+      },
+      {
+        "title": "Rate Limit Deny Ratio",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(gateway_rate_limit_denied_total[5m])) / (sum(rate(gateway_rate_limit_allowed_total[5m])) + sum(rate(gateway_rate_limit_denied_total[5m])) + 0.001)",
+            "legendFormat": "deny ratio"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 0.05, "color": "yellow" },
+                { "value": 0.2, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Config Refresh Events / min",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 18, "x": 6, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(gateway_config_refresh_total{status=\"success\"}[1m]) * 60",
+            "legendFormat": "{{table}} success"
+          },
+          {
+            "expr": "rate(gateway_config_refresh_total{status=\"failure\"}[1m]) * 60",
+            "legendFormat": "{{table}} failure"
+          }
+        ]
+      },
+      {
+        "title": "Config Refresh Latency (p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(gateway_config_refresh_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{config_type}} p95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "s" }
+        }
+      },
+      {
+        "title": "PG NOTIFY Listener Alive",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "gateway_config_listener_alive",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "1": { "text": "ALIVE", "color": "green" }, "0": { "text": "DEAD", "color": "red" } } }
+            ]
+          }
+        }
+      },
+      {
+        "title": "Hazelcast Cluster Members",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
+        "targets": [
+          {
+            "expr": "gateway_hazelcast_cluster_members",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 1, "color": "yellow" },
+                { "value": 2, "color": "green" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Listener Reconnections",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 20 },
+        "targets": [
+          {
+            "expr": "gateway_config_listener_reconnections",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Notifications Received",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 20 },
+        "targets": [
+          {
+            "expr": "gateway_config_listener_notifications_received",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "title": "Config Refresh Failures (total)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 24 },
+        "targets": [
+          {
+            "expr": "sum(gateway_config_refresh_total{status=\"failure\"}) or vector(0)",
+            "legendFormat": "failures"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 10, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Rate Limit Denied (total)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 8, "x": 8, "y": 24 },
+        "targets": [
+          {
+            "expr": "sum(gateway_rate_limit_denied_total) or vector(0)",
+            "legendFormat": "denied"
+          }
+        ]
+      },
+      {
+        "title": "Rate Limit Errors (total)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 8, "x": 16, "y": 24 },
+        "targets": [
+          {
+            "expr": "sum(gateway_rate_limit_errors_total) or vector(0)",
+            "legendFormat": "errors"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "red" }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

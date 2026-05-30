@@ -1,0 +1,16 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+
+  "_comment_health": "rc24+ replaced /status with /actuator/health/readiness (per dvarahq/dvara#665). The anonymous probe needs no Bearer.",
+  "_comment_secrets": "Set GATEWAY_LICENSE_KEY, GATEWAY_ENCRYPTION_MASTER_PASSWORD, GATEWAY_SERVER_API_KEY, GATEWAY_METRICS_API_KEY in the Railway service Variables tab. Railway doesn't have a SECRET type in railway.json — all four must be set out-of-band before first deploy or the gateway refuses startup.",
+
+  "build": {
+    "dockerfilePath": "gateway-server/Dockerfile"
+  },
+  "deploy": {
+    "healthcheckPath": "/actuator/health/readiness",
+    "healthcheckTimeout": 5,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}

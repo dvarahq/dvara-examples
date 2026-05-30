@@ -1,0 +1,7 @@
+.env
+.env.local
+.DS_Store
+*.log
+.idea/
+/getting-started/nodejs/node_modules/
+/dvara-examples.iml

@@ -1,0 +1,8 @@
+{
+  "name": "dvara-examples",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "openai": "^4.0.0"
+  }
+}

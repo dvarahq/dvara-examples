@@ -1,0 +1,13 @@
+# Minimal OpenAI gateway configuration
+# Usage: cp examples/gateway-yaml/gateway.openai.yaml ./gateway.yaml
+#        OPENAI_API_KEY=sk-... ./mvnw -pl gateway-server spring-boot:run
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+
+api_keys:
+  - generate: true
+    tenant: default
+    name: dev-key

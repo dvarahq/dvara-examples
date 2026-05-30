@@ -1,0 +1,66 @@
+# Full gateway.yaml example — all options documented
+# Copy to ./gateway.yaml in the working directory to use.
+# Env var references (${VAR} or ${VAR:-default}) are resolved at startup.
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1    # optional override (Azure, proxy)
+
+  - name: anthropic
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+
+  - name: gemini
+    type: gemini
+    api_key: ${GEMINI_API_KEY}
+
+  - name: ollama
+    type: ollama
+    base_url: ${OLLAMA_BASE_URL:-http://localhost:11434}
+
+  - name: bedrock
+    type: bedrock
+    access_key: ${AWS_ACCESS_KEY_ID}
+    secret_key: ${AWS_SECRET_ACCESS_KEY}
+    region: ${AWS_REGION:-us-east-1}
+
+  - name: mock
+    type: mock
+
+routes:
+  - id: gpt-route
+    model: "gpt*"                          # glob pattern
+    provider: openai                       # single provider shorthand
+
+  - id: claude-balanced
+    model: "claude*"
+    strategy: weighted                     # model-prefix | round-robin | weighted
+    providers:
+      - provider: anthropic
+        weight: 70
+      - provider: bedrock
+        weight: 30
+    fallback: openai                       # fallback provider name
+
+  - id: ollama-local
+    model: "ollama/*"
+    provider: ollama
+
+  - id: gemini-route
+    model: "gemini*"
+    provider: gemini
+
+api_keys:
+  - key: ${MY_GATEWAY_KEY}                 # static key from env var
+    tenant: production
+    scopes: [completions:write]
+
+  - generate: true                         # auto-generate, printed at startup
+    tenant: development
+    name: dev-key
+
+rate_limits:
+  requests_per_minute: 600
+  tokens_per_minute: 100000

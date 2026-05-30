@@ -1,0 +1,50 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# DVARA rc24+ locks /actuator/prometheus behind Bearer auth (per
+# dvarahq/dvara#665). Each scrape job below MUST send `Authorization:
+# Bearer $GATEWAY_METRICS_API_KEY` or the scrape returns 401 → all
+# Grafana dashboards render empty + every alert never fires.
+#
+# Pattern below uses `bearer_token_file:` — Prometheus reads the
+# token from disk on every scrape, so secret rotation is a file
+# update + no restart. The docker-compose stack in this directory
+# mounts a host file at /etc/prometheus/secrets/gateway-metrics-api-key
+# via the `secrets:` block.
+#
+# Alternative: set `bearer_token: "<inline>"` if you don't want to
+# manage the file mount — only suitable for dev / smoke runs since
+# the token then lives in this Git-tracked YAML.
+
+scrape_configs:
+  - job_name: dvara-gateway
+    metrics_path: /actuator/prometheus
+    scrape_interval: 10s
+    bearer_token_file: /etc/prometheus/secrets/gateway-metrics-api-key
+    static_configs:
+      - targets: ["gateway-server:8080"]
+        labels:
+          service: dvara-gateway
+
+  - job_name: dvara-ui
+    metrics_path: /actuator/prometheus
+    scrape_interval: 30s
+    bearer_token_file: /etc/prometheus/secrets/gateway-metrics-api-key
+    static_configs:
+      - targets: ["flightdeck:8090"]
+        labels:
+          service: dvara-ui
+
+  # Uncomment if MCP proxy is running
+  # - job_name: dvara-mcp-proxy
+  #   metrics_path: /actuator/prometheus
+  #   scrape_interval: 10s
+  #   bearer_token_file: /etc/prometheus/secrets/gateway-metrics-api-key
+  #   static_configs:
+  #     - targets: ["mcp-proxy-server:8070"]
+  #       labels:
+  #         service: dvara-mcp-proxy

@@ -1,0 +1,57 @@
+# Fly.io configuration — deploys DVARA AI Gateway
+#
+# Deploy:
+#   fly launch --copy-config --no-deploy
+#   fly secrets set GATEWAY_LICENSE_KEY=DVARA-…
+#   fly secrets set GATEWAY_ENCRYPTION_MASTER_PASSWORD=$(openssl rand -base64 32)
+#   fly secrets set GATEWAY_SERVER_API_KEY=$(openssl rand -base64 32)
+#   fly secrets set GATEWAY_METRICS_API_KEY=$(openssl rand -base64 32)
+#   fly deploy
+#
+# All four secrets above are required on rc24+ — boot refuses without
+# them. Escrow GATEWAY_ENCRYPTION_MASTER_PASSWORD offline (loss makes
+# every ENCRYPTED-mode provider credential permanently unrecoverable).
+# The two API_KEY values MUST differ (principle of least privilege).
+#
+# Add persistence:
+#   fly postgres create        # provisions Fly Managed Postgres
+#   fly postgres attach <db-name>
+#   # Fly auto-injects DATABASE_URL — convert to JDBC form via secret:
+#   fly secrets set SPRING_DATASOURCE_URL=jdbc:postgresql://...
+#   fly deploy
+#
+# Note on /actuator/health/readiness: anonymous probe (rc24+ documented
+# path). /status was removed in dvarahq/dvara#665.
+
+app = "dvara-gateway"
+primary_region = "iad"
+
+[build]
+  dockerfile = "gateway-server/Dockerfile"
+
+[env]
+  JAVA_OPTS = "-Xmx512m"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "5s"
+  grace_period = "30s"
+  method = "GET"
+  path = "/actuator/health/readiness"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

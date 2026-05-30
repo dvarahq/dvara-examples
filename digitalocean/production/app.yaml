@@ -1,0 +1,157 @@
+# DigitalOcean App Platform — DVARA Gateway production deploy
+# https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+#
+# Purpose: production-shaped deploy with the gateway data plane, the
+# Flightdeck Console + Portal, AND a DO Managed PostgreSQL database. Boots
+# all three apps healthy with real persistence + real provider routing.
+#
+# Pre-deploy checklist:
+#   1. Pin the image tag below to a published rc OR the GA release tag.
+#      `:latest` is convenient but operators usually want stability —
+#      replace `latest` on every `image.tag:` line below with e.g. `1.0.0`.
+#   2. Mint a production-signed DVARA license envelope. Set
+#      GATEWAY_LICENSE_KEY at deploy time via App Platform secrets.
+#   3. Generate three distinct random secrets (each `openssl rand -base64
+#      32`): GATEWAY_ENCRYPTION_MASTER_PASSWORD, GATEWAY_SERVER_API_KEY,
+#      GATEWAY_METRICS_API_KEY. The two API keys MUST differ.
+#   4. **Escrow GATEWAY_ENCRYPTION_MASTER_PASSWORD offline.** Loss
+#      bricks every ENCRYPTED-mode provider credential — AES-256-GCM
+#      with no recovery path. Password manager + printed copy + safe.
+#   5. Provision the Managed PG addon first (db-postgres-1g, region:nyc).
+#      App Platform auto-injects ${dvara-db.DATABASE_URL} — referenced
+#      below in SPRING_DATASOURCE_URL.
+#   6. Tenant provider credentials are written via Flightdeck's
+#      /v1/admin/credentials (BYOK) — NOT via env vars. The gateway-server
+#      service does NOT carry OPENAI_API_KEY / ANTHROPIC_API_KEY env vars
+#      in this template by design.
+#
+# One-click deploy:
+#   https://cloud.digitalocean.com/apps/new?repo=https://github.com/dvarahq/dvara-examples/tree/main/digitalocean/production
+
+spec:
+  name: dvara-gateway
+  region: nyc
+
+  databases:
+    - name: dvara-db
+      engine: PG
+      version: "16"
+      size: db-s-1vcpu-1gb
+      num_nodes: 1
+
+  services:
+    # ---- Data plane (gateway-server :8080) ----
+    - name: gateway-server
+      image:
+        registry_type: GHCR
+        registry: dvarahq
+        repository: dvara/dvara-llm-gateway
+        tag: latest
+      http_port: 8080
+      instance_count: 1
+      instance_size_slug: professional-xs
+      health_check:
+        http_path: /actuator/health/readiness
+        initial_delay_seconds: 60
+        period_seconds: 15
+        timeout_seconds: 5
+        failure_threshold: 3
+      envs:
+        - key: GATEWAY_LICENSE_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_ENCRYPTION_MASTER_PASSWORD
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_SERVER_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_METRICS_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: SPRING_DATASOURCE_URL
+          scope: RUN_TIME
+          value: ${dvara-db.DATABASE_URL}
+        - key: JAVA_OPTS
+          scope: RUN_TIME
+          value: "-Xmx1024m"
+
+    # ---- Console + Portal (flightdeck :8090) ----
+    - name: flightdeck
+      image:
+        registry_type: GHCR
+        registry: dvarahq
+        repository: dvara/dvara-flightdeck
+        tag: latest
+      http_port: 8090
+      instance_count: 1
+      instance_size_slug: professional-xs
+      health_check:
+        http_path: /actuator/health/liveness
+        initial_delay_seconds: 60
+        period_seconds: 15
+        timeout_seconds: 5
+        failure_threshold: 3
+      envs:
+        - key: GATEWAY_LICENSE_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_ENCRYPTION_MASTER_PASSWORD
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_SERVER_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: GATEWAY_METRICS_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        # Internal URL to the gateway-server service. App Platform
+        # exposes services to each other via the private hostname
+        # `${<service-name>.PRIVATE_URL}`.
+        - key: GATEWAY_SERVER_URL
+          scope: RUN_TIME
+          value: ${gateway-server.PRIVATE_URL}
+        - key: SPRING_DATASOURCE_URL
+          scope: RUN_TIME
+          value: ${dvara-db.DATABASE_URL}
+        - key: JAVA_OPTS
+          scope: RUN_TIME
+          value: "-Xmx1024m"
+
+    # ---- MCP Proxy (mcp-proxy-server :8070) — optional ----
+    # Uncomment to enable MCP tool governance. Requires the same license,
+    # encryption password, and metrics API key. Does NOT need
+    # GATEWAY_SERVER_API_KEY — `/actuator/gateway-status` is gateway-server
+    # only (per #667).
+    #
+    # - name: mcp-proxy-server
+    #   image:
+    #     registry_type: GHCR
+    #     registry: dvarahq
+    #     repository: dvara/dvara-mcp-gateway
+    #     tag: latest
+    #   http_port: 8070
+    #   instance_count: 1
+    #   instance_size_slug: professional-xs
+    #   health_check:
+    #     http_path: /actuator/health/liveness
+    #     initial_delay_seconds: 60
+    #     period_seconds: 15
+    #     timeout_seconds: 5
+    #     failure_threshold: 3
+    #   envs:
+    #     - key: GATEWAY_LICENSE_KEY
+    #       scope: RUN_TIME
+    #       type: SECRET
+    #     - key: GATEWAY_ENCRYPTION_MASTER_PASSWORD
+    #       scope: RUN_TIME
+    #       type: SECRET
+    #     - key: GATEWAY_METRICS_API_KEY
+    #       scope: RUN_TIME
+    #       type: SECRET
+    #     - key: SPRING_DATASOURCE_URL
+    #       scope: RUN_TIME
+    #       value: ${dvara-db.DATABASE_URL}
+    #     - key: JAVA_OPTS
+    #       scope: RUN_TIME
+    #       value: "-Xmx512m"

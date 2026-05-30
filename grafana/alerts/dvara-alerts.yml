@@ -1,0 +1,159 @@
+groups:
+  - name: dvara.gateway
+    rules:
+      # --- High Error Rate ---
+      - alert: DvaraHighErrorRate
+        expr: >
+          sum(rate(gateway_requests_total{status=~"5.."}[5m]))
+          / sum(rate(gateway_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: gateway
+        annotations:
+          summary: "Gateway error rate above 5%"
+          description: >
+            Error rate is {{ $value | humanizePercentage }} over the last 5 minutes.
+
+      # --- P95 Latency Breach ---
+      - alert: DvaraHighP95Latency
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(gateway_latency_seconds_bucket[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: gateway
+        annotations:
+          summary: "Gateway P95 latency above 5 seconds"
+          description: >
+            P95 latency is {{ $value | humanizeDuration }} over the last 5 minutes.
+
+      # --- Provider Error Spike ---
+      - alert: DvaraProviderErrorSpike
+        expr: >
+          sum by (provider) (rate(gateway_provider_errors_total[5m])) > 1
+        for: 3m
+        labels:
+          severity: warning
+          component: provider
+        annotations:
+          summary: "Provider {{ $labels.provider }} errors > 1/sec"
+          description: >
+            Provider {{ $labels.provider }} is generating {{ $value | humanize }} errors/sec.
+
+      # --- Circuit Breaker Open ---
+      # Detected via sustained provider errors with zero successful requests
+      - alert: DvaraCircuitBreakerOpen
+        expr: >
+          sum by (provider) (rate(gateway_provider_errors_total[2m])) > 0
+          and
+          sum by (provider) (rate(gateway_requests_total{status="200"}[2m])) == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: provider
+        annotations:
+          summary: "Provider {{ $labels.provider }} circuit breaker likely open"
+          description: >
+            Provider {{ $labels.provider }} has errors but zero successful requests for 2 minutes.
+
+      # --- Budget Hard Limit Hit ---
+      - alert: DvaraBudgetHardLimit
+        expr: >
+          sum by (tenant) (increase(gateway_budget_blocked_total[5m])) > 0
+        labels:
+          severity: critical
+          component: finops
+        annotations:
+          summary: "Tenant {{ $labels.tenant }} hit hard budget cap"
+          description: >
+            {{ $value }} requests blocked by hard budget limit in the last 5 minutes.
+
+      # --- Budget Soft Limit Warning ---
+      - alert: DvaraBudgetSoftLimit
+        expr: >
+          sum by (tenant) (increase(gateway_budget_soft_alert_total[15m])) > 0
+        labels:
+          severity: warning
+          component: finops
+        annotations:
+          summary: "Tenant {{ $labels.tenant }} approaching budget limit"
+          description: >
+            Soft budget limit breached — {{ $value }} alerts in the last 15 minutes.
+
+      # --- Cost Anomaly ---
+      - alert: DvaraCostAnomaly
+        expr: >
+          sum by (tenant, model) (increase(gateway_cost_anomaly_total[1h])) > 0
+        labels:
+          severity: warning
+          component: finops
+        annotations:
+          summary: "Cost anomaly detected for {{ $labels.tenant }} / {{ $labels.model }}"
+          description: >
+            Spending rate for {{ $labels.model }} in tenant {{ $labels.tenant }} exceeds baseline.
+
+      # --- Guardrail Blocks ---
+      - alert: DvaraGuardrailBlocks
+        expr: >
+          sum by (tenant, category) (rate(gateway_guardrail_blocked_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: guardrail
+        annotations:
+          summary: "Guardrail blocking requests: {{ $labels.category }}"
+          description: >
+            Tenant {{ $labels.tenant }} has {{ $labels.category }} guardrail blocks at {{ $value | humanize }}/sec.
+
+  - name: dvara.mcp
+    rules:
+      # --- Agent Loop Detection ---
+      - alert: DvaraAgentLoopDetected
+        expr: >
+          sum by (tenant, loop_type) (increase(mcp_agent_loop_detected_total[15m])) > 0
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "Agent loop detected ({{ $labels.loop_type }}) for tenant {{ $labels.tenant }}"
+
+      # --- MCP Approval Timeout ---
+      - alert: DvaraApprovalTimeouts
+        expr: >
+          sum(rate(mcp_approval_timeout_total[15m])) > 0
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP approval gate timeouts occurring"
+          description: >
+            {{ $value | humanize }} approval timeouts/sec in the last 15 minutes.
+
+      # --- MCP Tool Error Rate ---
+      - alert: DvaraMcpToolErrorRate
+        expr: >
+          sum by (server_id) (rate(mcp_tool_calls_total{status=~"error|5.."}[5m]))
+          / sum by (server_id) (rate(mcp_tool_calls_total[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: mcp
+        annotations:
+          summary: "MCP server {{ $labels.server_id }} error rate above 10%"
+
+      # --- Injection Detection ---
+      - alert: DvaraInjectionDetected
+        expr: >
+          sum by (tenant) (increase(gateway_mcp_injection_detections_total[15m])) > 0
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Prompt injection detected for tenant {{ $labels.tenant }}"
+          description: >
+            {{ $value }} injection detections in the last 15 minutes. Investigate immediately.

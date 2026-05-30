@@ -1,0 +1,120 @@
+# Datadog monitor definitions for DVARA AI Gateway.
+# Import via: datadog-ci monitors sync --config monitors.yaml
+# Or create manually in Datadog UI using these definitions.
+
+monitors:
+  - name: "[Dvara] High Gateway Error Rate"
+    type: metric alert
+    query: >
+      sum(last_5m):sum:dvara.gateway_requests_total{status:5*}.as_rate()
+      / sum:dvara.gateway_requests_total{*}.as_rate() > 0.05
+    message: |
+      Gateway error rate is above 5% for the last 5 minutes.
+      Current rate: {{value}}%
+
+      Investigate provider health and recent deployments.
+      @slack-dvara-alerts @pagerduty-dvara
+    tags:
+      - service:dvara-gateway
+      - severity:critical
+    options:
+      thresholds:
+        critical: 0.05
+        warning: 0.02
+      notify_no_data: false
+      evaluation_delay: 60
+
+  - name: "[Dvara] P95 Latency Breach"
+    type: metric alert
+    query: >
+      percentile(last_5m):p95:dvara.gateway_latency_seconds{*} > 5
+    message: |
+      Gateway P95 latency is above 5 seconds.
+      Current P95: {{value}}s
+
+      Check provider latency, model complexity, and request queue depth.
+      @slack-dvara-alerts
+    tags:
+      - service:dvara-gateway
+      - severity:warning
+    options:
+      thresholds:
+        critical: 5
+        warning: 3
+      notify_no_data: false
+
+  - name: "[Dvara] Budget Hard Limit Hit"
+    type: metric alert
+    query: >
+      sum(last_5m):sum:dvara.gateway_budget_blocked_total{*}.as_count() > 0
+    message: |
+      Tenant {{tenant.name}} has hit a hard budget cap.
+      {{value}} requests blocked in the last 5 minutes.
+
+      Review budget settings or increase limits.
+      @slack-dvara-finops @pagerduty-dvara
+    tags:
+      - service:dvara-gateway
+      - severity:critical
+      - component:finops
+    options:
+      thresholds:
+        critical: 0
+      notify_no_data: false
+
+  - name: "[Dvara] Provider Circuit Breaker"
+    type: metric alert
+    query: >
+      sum(last_2m):sum:dvara.gateway_provider_errors_total{*}.as_rate() by {provider} > 1
+    message: |
+      Provider {{provider.name}} is experiencing sustained errors (>1/sec for 2 minutes).
+      This may indicate a circuit breaker is open.
+
+      Check upstream provider status pages.
+      @slack-dvara-alerts
+    tags:
+      - service:dvara-gateway
+      - severity:critical
+      - component:provider
+    options:
+      thresholds:
+        critical: 1
+        warning: 0.5
+      notify_no_data: false
+
+  - name: "[Dvara] Agent Loop Detected"
+    type: metric alert
+    query: >
+      sum(last_15m):sum:dvara.mcp_agent_loop_detected_total{*}.as_count() > 0
+    message: |
+      Agent loop detected ({{loop_type.name}}) for tenant {{tenant.name}}.
+      Review session history and consider enabling auto-kill.
+
+      @slack-dvara-alerts
+    tags:
+      - service:dvara-mcp-proxy
+      - severity:warning
+      - component:agentic
+    options:
+      thresholds:
+        critical: 0
+      notify_no_data: false
+
+  - name: "[Dvara] Injection Attempt Detected"
+    type: metric alert
+    query: >
+      sum(last_15m):sum:dvara.gateway_mcp_injection_detections_total{*}.as_count() > 0
+    message: |
+      Prompt injection detected for tenant {{tenant.name}}.
+      {{value}} detections in the last 15 minutes.
+
+      Investigate immediately — this may indicate an active attack.
+      @slack-dvara-security @pagerduty-dvara
+    tags:
+      - service:dvara-gateway
+      - severity:critical
+      - component:security
+    options:
+      thresholds:
+        critical: 0
+      notify_no_data: false

@@ -1,0 +1,13 @@
+# Minimal Ollama gateway configuration (local models, no API key needed)
+# Usage: cp examples/gateway-yaml/gateway.ollama.yaml ./gateway.yaml
+#        ./mvnw -pl gateway-server spring-boot:run
+
+providers:
+  - name: ollama
+    type: ollama
+    base_url: ${OLLAMA_BASE_URL:-http://localhost:11434}
+
+api_keys:
+  - generate: true
+    tenant: default
+    name: dev-key

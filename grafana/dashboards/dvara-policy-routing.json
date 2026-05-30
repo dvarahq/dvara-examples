@@ -1,0 +1,90 @@
+{
+  "__inputs": [
+    { "name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "pluginId": "prometheus" }
+  ],
+  "id": null,
+  "uid": "dvara-policy-routing",
+  "title": "Dvara — Policy, Routing & Fleet",
+  "description": "Shadow policy divergence, canary testing, priority routing, config sync, and fleet health.",
+  "tags": ["dvara", "policy", "routing", "fleet"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "tenant",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(gateway_requests_total, tenant)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2,
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "Shadow Policy Divergence",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (policy_id, divergence_type) (rate(gateway_policy_shadow_divergence_total[5m]))",
+          "legendFormat": "{{policy_id}} ({{divergence_type}})"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "bars", "fillOpacity": 80 } } }
+    },
+    {
+      "title": "Canary Traffic Split",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (route_id, variant) (rate(gateway_canary_requests_total[5m]))",
+          "legendFormat": "{{route_id}} / {{variant}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 30 } } }
+    },
+    {
+      "title": "Shadow Routing",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (route_id, primary_provider, shadow_provider) (rate(gateway_shadow_requests_total[5m]))",
+          "legendFormat": "{{route_id}}: {{primary_provider}} → {{shadow_provider}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 15 } } }
+    },
+    {
+      "title": "Priority Routing",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (tier) (rate(gateway_priority_requests_total{tenant=~\"$tenant\"}[5m]))",
+          "legendFormat": "admitted: {{tier}}"
+        },
+        {
+          "expr": "sum by (tier) (rate(gateway_priority_throttled_total{tenant=~\"$tenant\"}[5m]))",
+          "legendFormat": "throttled: {{tier}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 15 } } }
+    }
+  ]
+}

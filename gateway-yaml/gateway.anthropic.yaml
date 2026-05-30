@@ -1,0 +1,13 @@
+# Minimal Anthropic gateway configuration
+# Usage: cp examples/gateway-yaml/gateway.anthropic.yaml ./gateway.yaml
+#        ANTHROPIC_API_KEY=sk-ant-... ./mvnw -pl gateway-server spring-boot:run
+
+providers:
+  - name: anthropic
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+
+api_keys:
+  - generate: true
+    tenant: default
+    name: dev-key
