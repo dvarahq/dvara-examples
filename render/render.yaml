@@ -1,0 +1,46 @@
+# Render Blueprint — deploys DVARA AI Gateway
+# https://render.com/docs/blueprint-spec
+#
+# /status was deleted in dvarahq/dvara#665 — use /actuator/health/readiness
+# (anonymous probe, no Bearer needed). The four SECRET env vars below
+# (sync: false) are prompted at deploy time on first apply; without them
+# the rc24+ fail-fast validators refuse startup.
+#
+# Database: add a Render Postgres instance separately and set
+# SPRING_DATASOURCE_URL from its connection string. Render Blueprint
+# doesn't auto-provision databases in v1; this is operator-driven.
+
+services:
+  - type: web
+    name: dvara-gateway
+    runtime: docker
+    dockerfilePath: gateway-server/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /actuator/health/readiness
+    envVars:
+      # Required SECRETs — prompted at deploy time (sync: false). Render's
+      # secret-management UI captures these; never put real values in this
+      # Git-tracked YAML.
+      - key: DVARA_LICENSE_KEY
+        sync: false
+      - key: DVARA_ENCRYPTION_MASTER_PASSWORD
+        sync: false
+      - key: DVARA_ACTUATOR_API_KEY
+        sync: false
+      - key: DVARA_ACTUATOR_METRICS_API_KEY
+        sync: false
+      # Optional — provider keys for env-var-style routing. Production
+      # deploys use the BYOK credential model via /v1/admin/credentials
+      # instead; leave these unset.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Non-secret config.
+      - key: OLLAMA_ENABLED
+        value: "false"
+      - key: JAVA_OPTS
+        value: "-Xmx512m"

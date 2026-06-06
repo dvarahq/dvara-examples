@@ -1,0 +1,107 @@
+# Dvara Gateway quick-start — gateway + admin UI + PostgreSQL + OpenAI.
+# The fastest path to a running gateway. OpenAI is the only provider.
+# For more providers (Anthropic, Gemini, etc.) see ../multi-provider.
+#
+# Usage:
+#   cp .env.example .env   # fill in EVERY uncommented variable — see .env.example
+#   docker compose up -d
+#   curl http://localhost:8080/actuator/health
+#   open http://localhost:8090
+#
+# Profile note: this stack runs on the Spring "default" profile (no
+# SPRING_PROFILES_ACTIVE), which is on the dev-profile allow-list. That
+# means the gateway will WARN-but-boot if DVARA_AUDIT_HMAC_SECRET is
+# left as the .env.example placeholder string. Production-class profiles
+# refuse to start on the placeholder — so always mint a real value via
+# `openssl rand -base64 32` before any non-evaluation deployment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-gateway:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    platform: linux/amd64
+    # `missing` pulls once on first `compose up` and reuses the local image
+    # on every subsequent run — friendlier on flaky networks / repeat
+    # evaluation. Use `pull_policy: always` for any non-evaluation
+    # deployment to track the moving :latest tag.
+    pull_policy: missing
+    ports:
+      - "8080:8080"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DVARA_LLM_GATEWAY_REQUIRE_API_KEY: ${DVARA_LLM_GATEWAY_REQUIRE_API_KEY:-false}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Match the image's baked HEALTHCHECK and the flightdeck probe below.
+      # /liveness is a single-state check (no DB pool / Hazelcast sub-states)
+      # so the docker UP/DOWN signal stays deterministic.
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-flightdeck:
+    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:latest
+    platform: linux/amd64
+    pull_policy: missing
+    ports:
+      - "8090:8090"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:

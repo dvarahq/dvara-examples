@@ -1,0 +1,142 @@
+# Dvara Gateway with transactional email — gateway + admin UI + PostgreSQL.
+# Same shape as ../quick-start, with the transactional email surface
+# (#835) wired up so /setup invitations, /forgot-password resets, and
+# (if you enable SaaS-mode) /signup welcome emails actually deliver.
+#
+# Three transport modes (pick one in .env via DVARA_FLIGHTDECK_EMAIL_TRANSPORT):
+#   - log    (default) — renders the email to flightdeck's stdout
+#   - resend           — POSTs to resend.com's transactional API
+#   - smtp             — Spring JavaMailSender + standard SMTP creds
+#
+# Every send goes through the email_delivery_log PG table (idempotency
+# dedupe + retry + DLQ). The ten DVARA_FLIGHTDECK_EMAIL_DELIVERY_* knobs
+# below are commented out — sensible defaults apply unchanged.
+#
+# Usage:
+#   cp .env.example .env   # fill in EVERY uncommented variable
+#   docker compose up -d
+#   curl http://localhost:8080/actuator/health
+#   open http://localhost:8090            # first visit → /setup
+#
+# Verifying delivery (log mode):
+#   docker compose logs -f dvara-flightdeck | grep -i 'email\|register'
+#
+# Inspecting the email_delivery_log:
+#   docker compose exec postgres psql -U dvara -c \
+#     "SELECT id, state, template, recipient, attempt_count, last_error \
+#      FROM dvara_main.email_delivery_log ORDER BY created_at DESC LIMIT 20;"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-gateway:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    platform: linux/amd64
+    pull_policy: missing
+    ports:
+      - "8080:8080"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets — same as quick-start.
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DVARA_LLM_GATEWAY_REQUIRE_API_KEY: ${DVARA_LLM_GATEWAY_REQUIRE_API_KEY:-false}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-flightdeck:
+    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:latest
+    platform: linux/amd64
+    pull_policy: missing
+    ports:
+      - "8090:8090"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+      # ──────────────────────────────────────────────────────────────
+      # Transactional email — transport selector + URLs that land in
+      # the rendered email body.
+      # ──────────────────────────────────────────────────────────────
+      DVARA_FLIGHTDECK_EMAIL_TRANSPORT: ${DVARA_FLIGHTDECK_EMAIL_TRANSPORT:-log}
+      DVARA_FLIGHTDECK_EMAIL_FROM: ${DVARA_FLIGHTDECK_EMAIL_FROM:-noreply@dvara.local}
+      DVARA_FLIGHTDECK_EMAIL_FLIGHTDECK_URL: ${DVARA_FLIGHTDECK_EMAIL_FLIGHTDECK_URL:-http://localhost:8090}
+      DVARA_FLIGHTDECK_EMAIL_PUBLIC_ENDPOINT_URL: ${DVARA_FLIGHTDECK_EMAIL_PUBLIC_ENDPOINT_URL:-http://localhost:8080/v1}
+      DVARA_FLIGHTDECK_EMAIL_DOCS_URL: ${DVARA_FLIGHTDECK_EMAIL_DOCS_URL:-https://dvarahq.com/docs}
+      # Resend transport — only read when TRANSPORT=resend.
+      DVARA_FLIGHTDECK_EMAIL_RESEND_API_KEY: ${DVARA_FLIGHTDECK_EMAIL_RESEND_API_KEY:-}
+      # SMTP transport — only read when TRANSPORT=smtp. Spring
+      # JavaMailSender is wired off the standard `spring.mail.*`
+      # property family.
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_STARTTLS_ENABLE:-true}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_AUTH:-true}
+      # ──────────────────────────────────────────────────────────────
+      # Email delivery durability (#835 PR 4) — optional tuning. All
+      # ten knobs ship with sensible defaults; uncomment + set in
+      # .env only if you need to deviate. Default schedule gives
+      # attempts at 0 / +30s / +60s / +120s / +120s ≈ 5m 30s before
+      # DLQ, retains DLQ rows 30 days, sweeps nightly 03:00 UTC.
+      # Observability — EMAIL_SENT / EMAIL_FAILED / EMAIL_RETRIED
+      # audit events + dvara_emails_{sent,retried}_total Prometheus
+      # counters fire whether you tune the knobs or not.
+      # ──────────────────────────────────────────────────────────────
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_ENABLED: "true"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_MAX_ATTEMPTS: "5"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_INITIAL_BACKOFF_MS: "30000"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_MAX_BACKOFF_MS: "120000"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_BACKOFF_MULTIPLIER: "2.0"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_RETRY_SWEEP_INTERVAL_MS: "30000"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_RETRY_SWEEP_BATCH_SIZE: "100"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_IDEMPOTENCY_TTL_MINUTES: "60"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_DLQ_RETENTION_DAYS: "30"
+      # DVARA_FLIGHTDECK_EMAIL_DELIVERY_CLEANUP_CRON: "0 0 3 * * *"
+    depends_on:
+      dvara-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:

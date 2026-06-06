@@ -1,0 +1,155 @@
+# DVARA Helm chart values — multi-region deploy
+#
+# Shape: one DVARA cluster per geographic region (us-east-1, eu-west-1,
+# ap-southeast-1, etc.). Each region runs a gateway-server stack with a
+# region-local PostgreSQL. Flightdeck Console is centralized in one
+# region (admin work; not on the data-plane hot path). MCP Proxy is
+# region-local with the gateway.
+#
+# This values file is **per-region** — install it three times, once per
+# region cluster, with different `gatewayServer.region.{id,name}` and
+# different ingress baseDomain. Tenant data-residency rules in the
+# product map tenant.metadata["region"] to which region's gateway
+# accepts the call.
+#
+# Pre-requisites:
+#   - Three (or more) Kubernetes clusters, one per region
+#   - PostgreSQL 16 instance per region, geographically local
+#   - Production-signed DVARA license envelope (the same envelope works
+#     across all regions — license validation is install-wide, not
+#     per-region)
+#   - Centralized Prometheus federation across regions (optional but
+#     recommended for cross-region visibility)
+#
+# Install (per region; example: us-east-1):
+#
+#   helm install dvara-us-east oci://ghcr.io/dvarahq/dvara/charts/meridian \
+#     --version 1.0.0 \
+#     --namespace dvara --create-namespace \
+#     --values ./values.yaml \
+#     --set "gatewayServer.region.id=us-east-1" \
+#     --set "gatewayServer.region.name=US East" \
+#     --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \
+#     --set "secrets.gatewayEncryptionMasterPassword=$DVARA_ENCRYPTION_MASTER_PASSWORD" \
+#     --set "secrets.gatewayServerApiKey=$DVARA_ACTUATOR_API_KEY" \
+#     --set "secrets.gatewayMetricsApiKey=$DVARA_ACTUATOR_METRICS_API_KEY" \
+#     --set "ingress.baseDomain=api-us-east.dvara.yoursaas.com"
+#
+# Repeat for each region. The shared `enterpriseLicenseKey` works
+# everywhere; the `*ApiKey` values can be per-region (regenerate
+# per-region for least privilege) OR shared (simpler ops).
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# ---- gateway-server: region-local data plane ----
+gatewayServer:
+  enabled: true
+  replicaCount: 3
+
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # SET VIA --set when installing per region. The product's data-residency
+  # routing reads dvara.region.id from the gateway, matches against
+  # tenant.metadata["region"], and refuses cross-region calls when policy
+  # demands. Empty region.id = region-agnostic (no residency enforcement).
+  region:
+    id: ""
+    name: ""
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  javaOpts: "-Xms512m -Xmx1536m"
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: gateway-server
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  pdb:
+    enabled: true
+    minAvailable: 2
+
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    # In a federated Prometheus setup, label with the region so cross-
+    # region dashboards can filter:
+    additionalLabels:
+      region: "${REGION_ID}"  # template at install time
+
+# ---- flightdeck: centralize in ONE region only ----
+#
+# Don't run flightdeck per-region; it's an admin surface and shares
+# one DB anyway. Disable here on every non-primary region; enable it
+# on the primary region's install (typically the region closest to the
+# operator team).
+flightdeck:
+  enabled: false
+
+# ---- mcp-proxy: region-local with the gateway ----
+#
+# Enable per-region for tool-call governance close to the data plane.
+# Tool-call latency benefits from co-region routing. License + Bearer
+# keys flow through the chart Secret as in the other shapes.
+mcpProxyServer:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 75
+  pdb:
+    enabled: true
+    minAvailable: 1
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+secrets:
+  create: true
+  enterpriseLicenseKey: ""             # SAME envelope across regions
+  gatewayEncryptionMasterPassword: ""  # SAME password — ENCRYPTED-mode
+                                       # credentials must decrypt across
+                                       # regions when a tenant migrates
+  gatewayServerApiKey: ""              # CAN be per-region for LP
+  gatewayMetricsApiKey: ""             # CAN be per-region for LP
+  providerKeys: {}
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  baseDomain: ""  # SET per region — e.g. api-us-east.dvara.yoursaas.com
+                  # Each region gets its own hostname so DNS-based geo
+                  # routing (Route53 latency policy / Cloudflare load
+                  # balancing) can steer customers to the closest region.

@@ -1,0 +1,123 @@
+# DVARA Helm chart values — single-tenant deploy
+#
+# Shape: gateway-server + flightdeck + ONE namespace + ONE tenant per
+# install. The classic "we run DVARA for ourselves on our cluster" deploy.
+# No MCP proxy, no autoscaling, no PDB — single-replica each, low resource
+# footprint, suitable for a 2-5 engineer team running production AI through
+# DVARA on their own k8s.
+#
+# Install:
+#
+#   # 1. Mint the four required secrets:
+#   export DVARA_LICENSE_KEY=DVARA-…                                  # production-signed envelope, from your DVARA account team
+#   export DVARA_ENCRYPTION_MASTER_PASSWORD=$(openssl rand -base64 32)  # ESCROW OFFLINE — loss is unrecoverable
+#   export DVARA_ACTUATOR_API_KEY=$(openssl rand -base64 32)
+#   export DVARA_ACTUATOR_METRICS_API_KEY=$(openssl rand -base64 32)
+#   [ "$DVARA_ACTUATOR_API_KEY" != "$DVARA_ACTUATOR_METRICS_API_KEY" ] && echo OK || echo "MUST DIFFER — regenerate"
+#
+#   # 2. Provision a PostgreSQL 16 instance somewhere reachable from the
+#   #    cluster (managed cloud, self-hosted, etc.) and capture the JDBC URL.
+#   export DVARA_DB_URL="jdbc:postgresql://your-db-host:5432/dvara?sslmode=require"
+#   export DVARA_DB_USER=dvara
+#   export DVARA_DB_PASS=…
+#
+#   # 3. Install (chart published at oci://ghcr.io/dvarahq/dvara/charts/meridian):
+#   helm install dvara oci://ghcr.io/dvarahq/dvara/charts/meridian \
+#     --version 1.0.0 \
+#     --namespace dvara --create-namespace \
+#     --values ./values.yaml \
+#     --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \
+#     --set "secrets.gatewayEncryptionMasterPassword=$DVARA_ENCRYPTION_MASTER_PASSWORD" \
+#     --set "secrets.gatewayServerApiKey=$DVARA_ACTUATOR_API_KEY" \
+#     --set "secrets.gatewayMetricsApiKey=$DVARA_ACTUATOR_METRICS_API_KEY" \
+#     --set "gatewayServer.extraEnv[0].name=SPRING_DATASOURCE_URL,gatewayServer.extraEnv[0].value=$DVARA_DB_URL" \
+#     --set "gatewayServer.extraEnv[1].name=SPRING_DATASOURCE_USERNAME,gatewayServer.extraEnv[1].value=$DVARA_DB_USER" \
+#     --set "gatewayServer.extraEnv[2].name=SPRING_DATASOURCE_PASSWORD,gatewayServer.extraEnv[2].value=$DVARA_DB_PASS" \
+#     # Same three SPRING_DATASOURCE_* on flightdeck.extraEnv — flightdeck
+#     # connects to the same DB.
+#
+# After install:
+#   kubectl port-forward -n dvara svc/dvara-meridian-flightdeck 8090:8090
+#   open http://localhost:8090/  # walk /setup, create your tenant, mint a key
+#
+# Operational notes:
+# - Single-replica gateway-server. If you need zero-downtime rolling
+#   updates, set replicaCount: 2 (the chart already has maxUnavailable: 0).
+# - No HPA. Capacity is the requests/limits below; size for steady-state
+#   load. The CI variant ci/full-values.yaml has the autoscaling shape.
+# - No PDB. Add `gatewayServer.pdb.enabled: true` if you run multiple
+#   replicas + want a disruption guarantee during voluntary evictions.
+# - Mock provider OFF — set `secrets.mockProviderEnabled: "true"` only
+#   for smoke / dev. Real provider credentials live in
+#   dvara_main.provider_credentials via the Console Credentials page
+#   (BYOK, AES-256-GCM at rest, rotatable without restart).
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+gatewayServer:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
+    # Pin in production. Defaults to Chart.appVersion if unset; both
+    # default-to-`latest` and explicit `1.0.0` work. Use the GA tag.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  javaOpts: "-Xms256m -Xmx768m"
+
+  # Probes default to the chart's documented paths
+  # (/actuator/health/{liveness,readiness}). No /status — that endpoint
+  # was removed in DVARA #665.
+
+  # Service monitor off by default — flip on if you run Prometheus
+  # Operator.
+  serviceMonitor:
+    enabled: false
+
+flightdeck:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mcpProxyServer:
+  enabled: false  # turn on only when you're routing through MCP tools
+
+secrets:
+  create: true
+  # ALL four below must be set at install time via --set or external Secret.
+  # Defaults are empty — boot fails the rc24+ fail-fast validators if any
+  # of the first three are absent. The two Bearer keys MUST differ.
+  enterpriseLicenseKey: ""
+  gatewayEncryptionMasterPassword: ""
+  gatewayServerApiKey: ""
+  gatewayMetricsApiKey: ""
+  # Optional — only if you want OpenAI routing without going through the
+  # Console BYOK flow. Leave empty otherwise; configure providers via
+  # `/portal/credentials` or `POST /v1/admin/credentials` after install.
+  providerKeys:
+    openai: ""
+
+ingress:
+  enabled: false
+  # Uncomment + customize for your cluster:
+  # className: nginx
+  # baseDomain: dvara.your-company.example
+  # # Produces api.dvara.your-company.example + flightdeck.dvara.your-company.example

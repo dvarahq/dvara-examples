@@ -1,0 +1,78 @@
+# DigitalOcean App Platform — DVARA Gateway smoke deploy
+# https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+#
+# Purpose: prove DVARA boots on App Platform with a single service, the
+# built-in Mock provider, no managed database, and no real LLM keys. The
+# fastest possible "yes this works" deploy.
+#
+# This is NOT production-ready:
+#   * No PostgreSQL — boot will partial-mode (data plane works against
+#     mock; persistence-backed admin APIs return TENANT_NOT_AVAILABLE etc.).
+#   * Mock provider only — `MOCK_PROVIDER_ENABLED=true` registers the
+#     `mock/*` model prefix. Real provider keys (OpenAI, Anthropic, …)
+#     are NOT wired here — see `../production/app.yaml`.
+#   * `:latest` image tag — points at the most-recent rc. Pin in
+#     production.
+#
+# One-click deploy:
+#   https://cloud.digitalocean.com/apps/new?repo=https://github.com/dvarahq/dvara-examples/tree/main/digitalocean/smoke
+
+spec:
+  name: dvara-gateway-smoke
+  region: nyc
+  services:
+    - name: gateway-server
+      image:
+        registry_type: GHCR
+        registry: dvarahq
+        repository: dvara/dvara-llm-gateway
+        tag: latest
+      http_port: 8080
+      instance_count: 1
+      instance_size_slug: basic-s
+      health_check:
+        # /actuator/health/readiness is the documented anonymous probe
+        # (per docs/claude/api-endpoints.md). `/status` was deleted in
+        # the v1.0.0-rc26 surface — DO NOT use it in any new config.
+        http_path: /actuator/health/readiness
+        initial_delay_seconds: 60
+        period_seconds: 15
+        timeout_seconds: 5
+        failure_threshold: 3
+      envs:
+        # Required: signed license envelope. Without it
+        # LicenseEnvironmentPostProcessor refuses startup. Generated
+        # via the release-tooling private key — request from the
+        # release manager. The matching dvara-license-verify-*.pub on
+        # the GHCR image's classpath must accept it.
+        - key: DVARA_LICENSE_KEY
+          scope: RUN_TIME
+          type: SECRET
+        # Required for any ENCRYPTED-mode provider credential created via
+        # POST /v1/admin/credentials. Generate with `openssl rand -base64
+        # 32`. **Loss is unrecoverable** — escrow this offline (password
+        # manager + printed copy in a safe). See docs/runbooks/
+        # ga-launch-checklist.md § Audit posture.
+        - key: DVARA_ENCRYPTION_MASTER_PASSWORD
+          scope: RUN_TIME
+          type: SECRET
+        # Required for /actuator/gateway-status (the operator-only
+        # surface flightdeck calls). Generate with `openssl rand -base64
+        # 32`. The Bearer the License Console + status probes carry.
+        - key: DVARA_ACTUATOR_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        # Required for /actuator/prometheus. **Must differ from
+        # DVARA_ACTUATOR_API_KEY** — principle of least privilege; a
+        # leaked metrics token does not unlock the License envelope.
+        - key: DVARA_ACTUATOR_METRICS_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        # Mock provider for smoke runs.
+        - key: MOCK_PROVIDER_ENABLED
+          scope: RUN_TIME
+          value: "true"
+        # Reasonable JVM heap for basic-s.
+        - key: JAVA_OPTS
+          scope: RUN_TIME
+          value: "-Xmx512m"

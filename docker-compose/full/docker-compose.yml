@@ -1,0 +1,128 @@
+# Full stack — gateway + admin UI + MCP proxy + PostgreSQL.
+# Every Dvara component running together, with all platform features available:
+# policies, PII, guardrails, audit, budgets, and MCP tool governance.
+#
+# Usage:
+#   cp .env.example .env   # edit with your keys
+#   docker compose up -d
+#   docker compose ps      # all 4 services should be healthy
+#   curl http://localhost:8080/actuator/health
+#   curl http://localhost:8070/actuator/health/liveness
+#   open http://localhost:8090
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "25432:5432"
+    environment:
+      POSTGRES_DB: dvara
+      POSTGRES_USER: dvara
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dvara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dvara"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+
+  dvara-gateway:
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MOCK_PROVIDER_ENABLED: ${MOCK_PROVIDER_ENABLED:-false}
+      DVARA_LLM_GATEWAY_REQUIRE_API_KEY: ${DVARA_LLM_GATEWAY_REQUIRE_API_KEY:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-flightdeck:
+    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:latest
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "8090:8090"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  dvara-mcp-gateway:
+    image: ghcr.io/dvarahq/dvara/dvara-mcp-gateway:latest
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "8070:8070"
+    environment:
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      dvara-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8070/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:
