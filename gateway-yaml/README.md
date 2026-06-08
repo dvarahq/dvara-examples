@@ -53,4 +53,4 @@ The bootstrap shape **prints any auto-generated keys to stdout at startup** (loo
 - **[../kubernetes/](../kubernetes/)** — Helm chart reference values. The chart's `gatewayServer.gatewayConfig:` field accepts the same shape inline.
 - **[../digitalocean/](../digitalocean/)** — DO App Platform deploys.
 - **[../datadog/](../datadog/)** + **[../grafana/](../grafana/)** — observability stacks.
-- **DVARA configuration reference** — `docs/claude/configuration.md` in the source repo lists every `gateway.*` property.
+- **DVARA configuration reference** — see the [Configuration docs](https://dvarahq.com/docs/deployment/configuration) for every `dvara.*` property.

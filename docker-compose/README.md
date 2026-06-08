@@ -51,9 +51,9 @@ All images are published on GitHub Container Registry:
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara/dvara-llm-gateway:latest` | Gateway server (port 8080) |
-| `ghcr.io/dvarahq/dvara/dvara-flightdeck:latest` | Admin dashboard (port 8090) |
-| `ghcr.io/dvarahq/dvara/dvara-mcp-gateway:latest` | MCP proxy server (port 8070) |
+| `ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.0.0` | Gateway server (port 8080) |
+| `ghcr.io/dvarahq/dvara/dvara-flightdeck:1.0.0` | Admin dashboard (port 8090) |
+| `ghcr.io/dvarahq/dvara/dvara-mcp-gateway:1.0.0` | MCP proxy server (port 8070) |
 
 ### Platform
 

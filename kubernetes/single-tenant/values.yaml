@@ -37,7 +37,7 @@
 #     # connects to the same DB.
 #
 # After install:
-#   kubectl port-forward -n dvara svc/dvara-meridian-flightdeck 8090:8090
+#   kubectl port-forward -n dvara svc/dvara-flightdeck 8090:8090
 #   open http://localhost:8090/  # walk /setup, create your tenant, mint a key
 #
 # Operational notes:

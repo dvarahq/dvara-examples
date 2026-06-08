@@ -40,7 +40,7 @@ Both variants default to `:latest`. For production stability, replace every `ima
 
 ## Provider keys — why they're NOT in env vars on the production variant
 
-The production shape uses the **BYOK credential model** (`docs/claude/features.md` § BYOK Credential Model in the source repo). Tenant provider keys live in the database as AES-256-GCM-encrypted rows in `dvara_main.provider_credentials`, not as `OPENAI_API_KEY` env vars on the gateway-server pod. Two reasons:
+The production shape uses the **BYOK credential model** (see [BYOK in the DVARA docs](https://dvarahq.com/docs)). Tenant provider keys live in the database as AES-256-GCM-encrypted rows in `dvara_main.provider_credentials`, not as `OPENAI_API_KEY` env vars on the gateway-server pod. Two reasons:
 
 1. **Per-tenant isolation.** Different tenants can BYO different OpenAI keys. Env-var keys are global.
 2. **Rotation without restart.** `POST /v1/admin/credentials/{id}/rotate` swaps the key in-process. Env-var keys require a redeploy.

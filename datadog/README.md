@@ -47,10 +47,10 @@ Every metric in the OpenMetrics config is **verified against the source emit sit
 - `mcp-proxy-server/.../McpMetrics` → MCP-side counters
 - `enterprise-*` modules → feature-specific counters (budget, guardrail, schema, agentic, MCP injection)
 
-If a metric you expect isn't there, check `docs/claude/features.md § Prometheus Metrics` in the source repo for the canonical list.
+If a metric you expect isn't there, check the [Observability docs](https://dvarahq.com/docs) for the canonical list.
 
 ## Related
 
-- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. The `multi-tenant-saas/` shape already sets `serviceMonitor.enabled: true` for Prometheus Operator; this Datadog integration is for environments that scrape DVARA directly via Datadog Agent instead of Prometheus + remote-write.
+- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. For Prometheus Operator scraping, set `serviceMonitor.enabled: true` in your values file; this Datadog integration is for environments that scrape DVARA directly via Datadog Agent instead of Prometheus + remote-write.
 - **[../docker-compose/](../docker-compose/)** — local Docker Compose stacks (Datadog Agent runs as a sibling container).
 - **DVARA docs** — [Observability stack](https://dvarahq.com/docs/governance/observability) on the website.

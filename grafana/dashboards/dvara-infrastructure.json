@@ -1,8 +1,8 @@
 {
   "dashboard": {
     "title": "Dvara Infrastructure",
-    "description": "Hazelcast rate limiter, PostgreSQL NOTIFY config refresh, and cluster health",
-    "tags": ["dvara", "infrastructure", "hazelcast", "config-sync"],
+    "description": "Distributed rate limiter, PostgreSQL NOTIFY config refresh, and cluster health",
+    "tags": ["dvara", "infrastructure", "cache", "config-sync"],
     "timezone": "browser",
     "refresh": "10s",
     "time": { "from": "now-1h", "to": "now" },
@@ -119,7 +119,7 @@
         }
       },
       {
-        "title": "Hazelcast Cluster Members",
+        "title": "Cache Cluster Members",
         "type": "stat",
         "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
         "targets": [

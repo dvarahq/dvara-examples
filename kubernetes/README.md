@@ -1,18 +1,17 @@
 # Kubernetes — Helm chart reference values
 
-Three reference `values.yaml` files that consume the published DVARA Helm chart at `oci://ghcr.io/dvarahq/dvara/charts/meridian`. **The chart itself lives in [`dvarahq/dvara`](https://github.com/dvarahq/dvara/tree/main/charts/meridian) — these are deploy recipes that point at it.**
+Two reference `values.yaml` files that consume the published DVARA Helm chart at `oci://ghcr.io/dvarahq/charts/dvara`.
 
 | Shape | When to use |
 |---|---|
 | **[`single-tenant/`](single-tenant/values.yaml)** | "We run DVARA for ourselves on our k8s cluster, one tenant." Single-replica each, low resource footprint. ~5min install. |
-| **[`multi-tenant-saas/`](multi-tenant-saas/values.yaml)** | "We operate DVARA AS A SaaS — each customer becomes a tenant." Includes flightdeck Console, MCP Proxy, autoscaling, PDB, ServiceMonitor. |
 | **[`multi-region/`](multi-region/values.yaml)** | "Multiple Kubernetes clusters, one per region (us-east-1 / eu-west-1 / ap-southeast-1)." Region-local gateway + MCP; centralized flightdeck in one region. Per-region tenant data residency. |
 
 ## Pre-requisites (all shapes)
 
 1. **Kubernetes 1.28+** (chart `kubeVersion: ">=1.28.0-0"`)
 2. **Helm 3.8+** (OCI registry support — older Helm versions can't `helm pull` from OCI)
-3. **PostgreSQL 16** instance reachable from the cluster. Not bundled by the chart; bring your own (managed cloud, self-hosted, etc.). For SaaS shape, size for your tenant count.
+3. **PostgreSQL 16** instance reachable from the cluster. Not bundled by the chart; bring your own (managed cloud, self-hosted, etc.).
 4. **DVARA license envelope** — production-signed `DVARA-…` string. Request from your DVARA account team. The GHCR images carry only the production verify key; a locally-minted test envelope will NOT validate.
 5. **Four secrets** at install time (three of these via `openssl rand -base64 32`):
 
@@ -29,10 +28,10 @@ Chart is published as an OCI artifact:
 
 ```bash
 # Verify (Helm 3.8+):
-helm show chart oci://ghcr.io/dvarahq/dvara/charts/meridian --version 1.0.0
+helm show chart oci://ghcr.io/dvarahq/charts/dvara --version 1.0.0
 
 # Install (single-tenant example):
-helm install dvara oci://ghcr.io/dvarahq/dvara/charts/meridian \
+helm install dvara oci://ghcr.io/dvarahq/charts/dvara \
   --version 1.0.0 \
   --namespace dvara --create-namespace \
   --values ./single-tenant/values.yaml \
@@ -52,9 +51,9 @@ For non-trivial deploys, manage secrets via an outer Secret resource + `secrets.
 kubectl get pods -n dvara
 kubectl logs -n dvara -l app.kubernetes.io/component=gateway-server -f
 
-# Port-forward the Console (single-tenant + multi-tenant-saas shapes;
+# Port-forward the Console (single-tenant shape;
 # multi-region centralizes flightdeck in one region):
-kubectl port-forward -n dvara svc/dvara-meridian-flightdeck 8090:8090
+kubectl port-forward -n dvara svc/dvara-flightdeck 8090:8090
 ```
 
 Open `http://localhost:8090/`:
@@ -88,4 +87,3 @@ After install, run `helm test dvara -n dvara` to fire the bundled smoke test aga
 - **[../docker-compose/](../docker-compose/)** — local Docker Compose stacks
 - **[../getting-started/](../getting-started/)** — first-request scripts after the deploy is up
 - **[../sdk-integrations/](../sdk-integrations/)** — OpenAI SDK / LangChain / LiteLLM / Spring AI examples
-- **Chart source** — [`dvarahq/dvara/charts/meridian/`](https://github.com/dvarahq/dvara/tree/main/charts/meridian)

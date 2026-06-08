@@ -12,7 +12,7 @@ Pre-built Grafana dashboards and Prometheus alerting rules for DVARA AI Gateway.
 | FinOps & Budget | `dvara-finops` | Cost by tenant/model/provider, budget enforcement, model downgrades, anomalies |
 | MCP Proxy & Agentic | `dvara-mcp` | Tool calls, agent sessions, loop detection, approval gates, injection detection |
 | Policy & Routing | `dvara-policy-routing` | Shadow policy divergence, canary testing, priority routing, config refresh |
-| Infrastructure | `dvara-infrastructure` | Config listener health, Hazelcast cluster, rate-limit counters |
+| Infrastructure | `dvara-infrastructure` | Config listener health, cache cluster, rate-limit counters |
 
 All dashboards include template variables for filtering by tenant, provider, model, and server.
 
@@ -77,6 +77,6 @@ Wire alerts to your notification backend (Slack, PagerDuty, OpsGenie, …) via A
 ## Related
 
 - **[../datadog/](../datadog/)** — same metrics surface, Datadog Agent + monitor definitions instead. Pick one observability stack per environment.
-- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. The `multi-tenant-saas/` shape enables `serviceMonitor: enabled: true` for Prometheus Operator — use that path on Kubernetes instead of this compose overlay.
+- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. Set `serviceMonitor.enabled: true` in your values file for Prometheus Operator scraping on Kubernetes instead of this compose overlay.
 - **[../docker-compose/](../docker-compose/)** — base DVARA Compose stacks. This monitoring overlay is designed to compose with `docker-compose/full/`.
-- **DVARA Prometheus metric reference** — [`docs/claude/features.md § Prometheus Metrics`](https://github.com/dvarahq/dvara/blob/main/docs/claude/features.md) in the source repo.
+- **DVARA Prometheus metric reference** — see the [Observability docs](https://dvarahq.com/docs).

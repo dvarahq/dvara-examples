@@ -31,9 +31,9 @@ spec:
       instance_count: 1
       instance_size_slug: basic-s
       health_check:
-        # /actuator/health/readiness is the documented anonymous probe
-        # (per docs/claude/api-endpoints.md). `/status` was deleted in
-        # the v1.0.0-rc26 surface — DO NOT use it in any new config.
+        # /actuator/health/readiness is the documented anonymous probe.
+        # The legacy /status endpoint was deleted in 1.0.0 — DO NOT use
+        # it in any new config.
         http_path: /actuator/health/readiness
         initial_delay_seconds: 60
         period_seconds: 15
