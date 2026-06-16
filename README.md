@@ -31,6 +31,14 @@ pip install -r requirements.txt
 python dvara_test.py
 ```
 
+## Compatibility
+
+Each release of these examples is pinned to a specific Dvara LLM Gateway version. Use the matching examples release for your gateway version.
+
+| Examples release | Compatible Dvara version |
+|---|---|
+| `1.0.1` | Dvara `1.0.1` (clean release) only |
+
 ## Documentation
 
 Full product docs at [dvarahq.com/docs](https://dvarahq.com/docs).
