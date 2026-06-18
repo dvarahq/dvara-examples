@@ -1,0 +1,137 @@
+# DVARA Helm chart values — Google Kubernetes Engine (GKE)
+#
+# GCP-specific overlay on the cloud-agnostic dvara chart
+# (oci://ghcr.io/dvarahq/charts/dvara). Differs from the generic
+# kubernetes/single-tenant/values.yaml only in three GCP-native bindings:
+#
+#   1. Workload Identity  — per-component ServiceAccount annotated with the
+#      GCP service account, so pods authenticate to Cloud SQL (IAM DB auth)
+#      and Secret Manager WITHOUT a static key. SA names are PINNED below so
+#      the WI IAM binding member (`PROJECT.svc.id.goog[dvara/<ksa>]`) is
+#      deterministic — deploy.sh binds these exact names.
+#   2. GCE Ingress        — className `gce` + a Google global static IP +
+#      a Google-managed certificate (annotation, NOT spec.tls). We set
+#      explicit `hosts` and leave `tls: []` so the chart renders NO spec.tls
+#      block — GCE managed certs are driven by the annotation + the
+#      ManagedCertificate CRD in managed-certificate.yaml.
+#   3. Cloud SQL DSN      — injected via extraEnv. The JDBC URL points at the
+#      Cloud SQL PRIVATE IP (VPC-native cluster + private services access);
+#      the password comes from the k8s Secret via secretKeyRef, never inline.
+#
+# deploy.sh fills the @@PLACEHOLDER@@ tokens (project id, static IP name,
+# domains, Cloud SQL private IP, secret name). You can also `--set` them.
+# Nothing GKE-specific lives in the chart — see kubernetes/README.md.
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+gatewayServer:
+  enabled: true
+  replicaCount: 2          # GCE Ingress + zero-downtime rolling updates
+
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
+    # PIN in production. Empty defaults to Chart.appVersion. Use the
+    # published GA tag (e.g. 1.0.1) or, once cut, 1.1.0. Never :latest.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # Pinned KSA name → deterministic WI binding member.
+  serviceAccount:
+    create: true
+    name: dvara-gateway-server
+    annotations:
+      iam.gke.io/gcp-service-account: dvara-gke@@@PROJECT_ID@@.iam.gserviceaccount.com
+
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+
+  javaOpts: "-Xms256m -Xmx768m"
+
+  # Cloud SQL connection. URL host is the PRIVATE IP (deploy.sh substitutes
+  # @@CLOUDSQL_PRIVATE_IP@@). Password via secretKeyRef — keep it out of
+  # plaintext values + shell history.
+  extraEnv:
+    - name: SPRING_DATASOURCE_URL
+      value: "jdbc:postgresql://@@CLOUDSQL_PRIVATE_IP@@:5432/dvara?sslmode=require"
+    - name: SPRING_DATASOURCE_USERNAME
+      value: "dvara"
+    - name: SPRING_DATASOURCE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dvara-db
+          key: password
+
+  # GCE L7 LB health checks hit the readiness path; keep the chart defaults.
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+flightdeck:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-flightdeck
+    tag: ""
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: dvara-flightdeck
+    annotations:
+      iam.gke.io/gcp-service-account: dvara-gke@@@PROJECT_ID@@.iam.gserviceaccount.com
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  extraEnv:
+    - name: SPRING_DATASOURCE_URL
+      value: "jdbc:postgresql://@@CLOUDSQL_PRIVATE_IP@@:5432/dvara?sslmode=require"
+    - name: SPRING_DATASOURCE_USERNAME
+      value: "dvara"
+    - name: SPRING_DATASOURCE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dvara-db
+          key: password
+
+# MCP proxy off by default — flip on (and add a third WI-bound SA) when you
+# route through MCP tools. Metered separately under the usage-unit model.
+mcpProxyServer:
+  enabled: false
+
+# DVARA platform secrets (license / encryption password / two actuator
+# Bearers / audit HMAC). deploy.sh creates this Secret — either directly
+# from generated values (SECRET_MODE=k8s) or as a Secret Manager → k8s
+# projection via the CSI SecretProviderClass (SECRET_MODE=secret-manager,
+# the Workload-Identity-for-secrets path). Either way the chart consumes it
+# by name, so `create: false` here.
+secrets:
+  create: false
+  existingSecret: dvara-platform
+
+# GCE Ingress. Explicit hosts + empty tls so NO spec.tls renders — Google
+# managed certs are driven by the annotation + managed-certificate.yaml.
+# For a quick IP-only smoke (no domain) drop the managed-certificates
+# annotation and set kubernetes.io/ingress.allow-http: "true".
+ingress:
+  enabled: true
+  className: gce
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: "@@STATIC_IP_NAME@@"
+    networking.gke.io/managed-certificates: "dvara-cert"
+    kubernetes.io/ingress.allow-http: "false"
+  gatewayServer:
+    hosts:
+      - host: "@@API_HOST@@"          # e.g. api.dvara.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  flightdeck:
+    hosts:
+      - host: "@@FLIGHTDECK_HOST@@"   # e.g. flightdeck.dvara.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []

@@ -1,0 +1,23 @@
+# Google-managed TLS certificate for the GCE Ingress.
+#
+# GCE Ingress does NOT use `spec.tls` (k8s Secret) for Google-managed
+# certs — it provisions them from this CRD, referenced by the Ingress
+# annotation `networking.gke.io/managed-certificates: dvara-cert` in
+# values-gke.yaml. Google issues + renews the cert automatically once the
+# Ingress static IP is bound and DNS A-records for both hosts point at it.
+#
+# Provisioning takes 15-60 min after DNS resolves — `kubectl describe
+# managedcertificate dvara-cert -n dvara` shows status Provisioning →
+# Active. The Ingress serves HTTP-503 until the cert is Active.
+#
+# deploy.sh substitutes @@API_HOST@@ / @@FLIGHTDECK_HOST@@. Skip this file
+# entirely for an IP-only smoke (no domain) — see README "Quick IP smoke".
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: dvara-cert
+  namespace: dvara
+spec:
+  domains:
+    - "@@API_HOST@@"
+    - "@@FLIGHTDECK_HOST@@"
