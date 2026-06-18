@@ -1,0 +1,110 @@
+# DVARA Helm chart values — DigitalOcean Kubernetes (DOKS)
+#
+# DO-specific overlay on the cloud-agnostic dvara chart
+# (oci://ghcr.io/dvarahq/charts/dvara). Differs from kubernetes/gke/ in
+# exactly three places — the chart itself is identical:
+#
+#   1. No Workload Identity — DigitalOcean has no per-pod cloud identity.
+#      Secrets are a plain k8s Secret (created by deploy.sh from generated
+#      values, or your own external secrets manager via existingSecret).
+#   2. DO Managed PostgreSQL — DSN points at the cluster's PRIVATE host on
+#      port 25060 with sslmode=require. Use the DIRECT connection (25060) or
+#      a SESSION-mode connection pool. NEVER a transaction-mode pool: it
+#      breaks PG NOTIFY/LISTEN, which is how config hot-reload propagates
+#      from Flightdeck to the data plane.
+#   3. Traefik v3 ingress — ingress-nginx reached EOL in March 2026, so the
+#      recipe uses Traefik (built-in ACME / Let's Encrypt, no cert-manager).
+#      The chart renders a standard Ingress; Traefik's certresolver issues
+#      the cert for the baseDomain-derived hosts.
+#
+# deploy.sh fills the @@PLACEHOLDER@@ tokens (DB private host, base domain).
+# The chart is controller-agnostic — to use a different ingress controller,
+# change ingress.className + annotations to match it.
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+gatewayServer:
+  enabled: true
+  replicaCount: 2          # zero-downtime rolling updates behind the DO LB
+
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
+    # PIN in production. Empty defaults to Chart.appVersion. Use the
+    # published GA tag (e.g. 1.0.1) or 1.1.0 once cut. Never :latest.
+    tag: ""
+    pullPolicy: IfNotPresent
+
+  # No cloud SA annotations — DO has no Workload Identity. Default SA.
+  serviceAccount:
+    create: true
+
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+
+  javaOpts: "-Xms256m -Xmx768m"
+
+  # DO Managed PG — PRIVATE host, port 25060, SSL required. Password via
+  # secretKeyRef (kept out of plaintext values + shell history).
+  extraEnv:
+    - name: SPRING_DATASOURCE_URL
+      value: "jdbc:postgresql://@@DB_PRIVATE_HOST@@:25060/dvara?sslmode=require"
+    - name: SPRING_DATASOURCE_USERNAME
+      value: "dvara"
+    - name: SPRING_DATASOURCE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dvara-db
+          key: password
+
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+flightdeck:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/dvarahq/dvara/dvara-flightdeck
+    tag: ""
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  extraEnv:
+    - name: SPRING_DATASOURCE_URL
+      value: "jdbc:postgresql://@@DB_PRIVATE_HOST@@:25060/dvara?sslmode=require"
+    - name: SPRING_DATASOURCE_USERNAME
+      value: "dvara"
+    - name: SPRING_DATASOURCE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dvara-db
+          key: password
+
+# MCP proxy off by default — metered separately under the usage-unit model.
+mcpProxyServer:
+  enabled: false
+
+# Platform secrets (license / encryption password / 2 actuator Bearers /
+# audit HMAC) as a plain k8s Secret created by deploy.sh. The chart's
+# provider-key refs are optional:true, so it carries only these 5 keys.
+secrets:
+  create: false
+  existingSecret: dvara-platform
+
+# Traefik v3 ingress with built-in Let's Encrypt. baseDomain derives
+# api.<domain> + flightdeck.<domain> (and TLS entries); Traefik's
+# certresolver issues the certs. One-key override, like the managed-hosting
+# pattern (dvarahq/dvara#557).
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+  baseDomain: "@@BASE_DOMAIN@@"   # e.g. dvara.example.com
