@@ -1,0 +1,52 @@
+# DvaraGke jbang values — NON-SECRET config only.
+# Secrets are read from the ENVIRONMENT, never this file:
+#   DVARA_LICENSE_KEY, DVARA_AUDIT_HMAC_SECRET, DVARA_ENCRYPTION_MASTER_PASSWORD,
+#   DVARA_ACTUATOR_API_KEY, DVARA_ACTUATOR_METRICS_API_KEY, DVARA_DB_PASSWORD,
+#   OPENAI_API_KEY (optional), ANTHROPIC_API_KEY (optional).
+#
+# Copy to gke.yaml, fill REPLACE_ME, then:  ./DvaraGke.java apply --values gke.yaml
+
+gcp:
+  projectId: REPLACE_ME          # your billing-enabled GCP project
+  region: us-central1
+  network: default               # VPC-native cluster network
+
+cluster:
+  name: dvara
+  mode: autopilot                # autopilot | standard
+  nodeCount: 2                   # standard mode only
+  machineType: e2-standard-2     # standard mode only
+
+cloudsql:
+  instance: dvara-pg
+  tier: db-custom-1-3840
+  version: POSTGRES_16
+  db: meridian
+  user: dvara
+
+namespace: dvara
+secretMode: k8s                  # k8s | secret-manager (Secret Manager CSI + Workload Identity)
+
+domain:
+  base: ""                       # e.g. dvara.example.com — omit/empty for IP-only smoke
+
+image:
+  # Use the PUBLISHED GA tag — 1.1.0 is not cut yet (product is 1.1.0-SNAPSHOT).
+  # Switch to 1.1.0 once its images + chart are published to GHCR. Never :latest.
+  tag: "1.0.1"
+
+helm:
+  release: dvara
+  chartRef: oci://ghcr.io/dvarahq/charts/dvara   # the published chart OCI (or a local chart path)
+  chartVersion: "1.0.1"          # pin to the published GA; use 1.1.0 once cut
+  valuesFile: values-gke.yaml    # the helm overlay alongside this file
+
+ingress:
+  name: dvara
+
+secrets:
+  existingSecret: dvara-secrets
+
+workloadIdentity:                # secret-manager mode only
+  gsaName: dvara-gke
+  ksaName: dvara

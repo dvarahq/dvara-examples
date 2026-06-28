@@ -1,0 +1,23 @@
+# Helm overlay for the GKE C6 verification — consumed by DvaraGke.install via `-f`.
+#
+# The tool creates an opaque Secret (default name `dvara-secrets`) with the
+# chart's kebab-case keys (enterprise-license-key, gateway-server-api-key,
+# gateway-metrics-api-key, audit-hmac-secret, gateway-encryption-master-password,
+# spring-datasource-password) — so the chart must READ that Secret rather than
+# create its own. The DSN URL/username + per-component image tags are injected by
+# the tool via `--set`.
+secrets:
+  create: false
+  existingSecret: dvara-secrets
+
+# mcp-proxy-server stays off for the smoke — gateway-server + flightdeck prove the
+# deploy path against Cloud SQL. Enable it (and add its DSN extraEnv) for MCP coverage.
+mcpProxyServer:
+  enabled: false
+
+# IP-only smoke (no domain): no Ingress. Readiness is proven by `helm --wait`
+# (the chart's readiness probes hit /actuator/health/readiness inside the
+# cluster). The tool's external curl is best-effort; enable an Ingress +
+# domain for an external smoke.
+ingress:
+  enabled: false

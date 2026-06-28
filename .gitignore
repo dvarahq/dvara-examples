@@ -5,3 +5,8 @@
 .idea/
 /getting-started/nodejs/node_modules/
 *.iml
+/kubernetes/gke/jbang/gke.yaml
+/kubernetes/gke/jbang/gke.env
+/kubernetes/gke/jbang/dvara.kubeconfig
+/kubernetes/gke/jbang/gke_gcloud_auth_plugin_cache
+/kubernetes/gke/jbang/gke.yaml.state.json
