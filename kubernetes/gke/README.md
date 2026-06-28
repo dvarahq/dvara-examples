@@ -82,7 +82,7 @@ This path needs the GKE Secret Manager CSI provider **and** a CSI volume mount o
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.0.1`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match (e.g. `1.1.0` once cut).
+`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.1.0`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
 
 ## Related
 

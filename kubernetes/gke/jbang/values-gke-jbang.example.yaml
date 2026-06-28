@@ -31,14 +31,13 @@ domain:
   base: ""                       # e.g. dvara.example.com — omit/empty for IP-only smoke
 
 image:
-  # Use the PUBLISHED GA tag — 1.1.0 is not cut yet (product is 1.1.0-SNAPSHOT).
-  # Switch to 1.1.0 once its images + chart are published to GHCR. Never :latest.
-  tag: "1.0.1"
+  # Use the PUBLISHED GA tag. Never :latest.
+  tag: "1.1.0"
 
 helm:
   release: dvara
   chartRef: oci://ghcr.io/dvarahq/charts/dvara   # the published chart OCI (or a local chart path)
-  chartVersion: "1.0.1"          # pin to the published GA; use 1.1.0 once cut
+  chartVersion: "1.1.0"          # pin to the published GA
   valuesFile: values-gke.yaml    # the helm overlay alongside this file
 
 ingress:

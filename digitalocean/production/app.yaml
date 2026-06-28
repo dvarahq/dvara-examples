@@ -8,7 +8,7 @@
 # Pre-deploy checklist:
 #   1. Pin the image tag below to a published rc OR the GA release tag.
 #      `:latest` is convenient but operators usually want stability —
-#      replace `latest` on every `image.tag:` line below with e.g. `1.0.1`.
+#      replace `latest` on every `image.tag:` line below with e.g. `1.1.0`.
 #   2. Mint a production-signed DVARA license envelope. Set
 #      DVARA_LICENSE_KEY at deploy time via App Platform secrets.
 #   3. Generate three distinct random secrets (each `openssl rand -base64

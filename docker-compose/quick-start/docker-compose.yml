@@ -34,7 +34,7 @@ services:
       retries: 5
 
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.0.1
+    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.1.0
     platform: linux/amd64
     # `missing` pulls once on first `compose up` and reuses the local image
     # on every subsequent run — friendlier on flaky networks / repeat
@@ -73,7 +73,7 @@ services:
       retries: 3
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:1.0.1
+    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:1.1.0
     platform: linux/amd64
     pull_policy: missing
     ports:
