@@ -158,10 +158,10 @@ class DvaraGkeTest {
         var p = new FakeProc();
         new HelmGke(p, Map.of("KUBECONFIG", "/tmp/kc")).upgradeInstall(
                 "dvara", "dvara", "oci://ghcr.io/dvarahq/dvara/dvara", "",
-                List.of("values-gke.yaml"), Map.of("image.tag", "1.2.3"));
+                List.of("values-gke.yaml"), Map.of("image.tag", "1.2.4"));
         assertTrue(p.ran("helm", "upgrade", "--install", "dvara"));
         assertTrue(p.ran("-f", "values-gke.yaml"));
-        assertTrue(p.ran("--set", "image.tag=1.2.3"));
+        assertTrue(p.ran("--set", "image.tag=1.2.4"));
         assertTrue(p.ran("--wait"));
     }
 
