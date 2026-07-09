@@ -33,7 +33,7 @@ gatewayServer:
   image:
     repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.2.4) or 1.2.4 once cut. Never :latest.
+    # published GA tag (e.g. 1.2.5) or 1.2.5 once cut. Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 
