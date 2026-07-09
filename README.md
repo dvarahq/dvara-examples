@@ -2,6 +2,8 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
+> **Latest release: [1.2.3](https://github.com/dvarahq/dvara-examples/releases/tag/1.2.3)** — compatible with Dvara LLM Gateway `1.2.3`.
+
 ## Contents
 
 | Directory | Description |
