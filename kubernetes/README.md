@@ -28,11 +28,11 @@ Chart is published as an OCI artifact:
 
 ```bash
 # Verify (Helm 3.8+):
-helm show chart oci://ghcr.io/dvarahq/charts/dvara --version 1.2.2
+helm show chart oci://ghcr.io/dvarahq/charts/dvara --version 1.2.3
 
 # Install (single-tenant example):
 helm install dvara oci://ghcr.io/dvarahq/charts/dvara \
-  --version 1.2.2 \
+  --version 1.2.3 \
   --namespace dvara --create-namespace \
   --values ./single-tenant/values.yaml \
   --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \

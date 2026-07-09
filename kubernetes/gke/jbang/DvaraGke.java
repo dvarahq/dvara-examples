@@ -146,7 +146,7 @@ public class DvaraGke {
         c.st.cloudsqlPrivateIp = c.gcloud.cloudSqlPrivateIp(sql);
         c.st.secretMode = c.secretMode; c.st.namespace = c.namespace;
         c.st.domainBase = c.v.optional("domain.base").orElse(null);
-        c.st.imageTag = c.v.text("image.tag", "1.2.2");
+        c.st.imageTag = c.v.text("image.tag", "1.2.3");
 
         if (smAddon) {
             String saName = c.v.text("workloadIdentity.gsaName", "dvara-gke");
@@ -192,7 +192,7 @@ public class DvaraGke {
         // The chart carries per-component image tags (no global tag); apply the one
         // configured tag to all three runnable components. Default to the published GA.
         var setValues = new LinkedHashMap<String, String>();
-        String tag = c.v.text("image.tag", "1.2.2");
+        String tag = c.v.text("image.tag", "1.2.3");
         setValues.put("gatewayServer.image.tag", tag);
         setValues.put("flightdeck.image.tag", tag);
         setValues.put("mcpProxyServer.image.tag", tag);
