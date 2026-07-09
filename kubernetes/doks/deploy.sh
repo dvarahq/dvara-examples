@@ -34,8 +34,8 @@ K8S_VERSION="${K8S_VERSION:-}"                   # empty → latest; or e.g. 1.3
 NS="${NS:-dvara}"
 RELEASE="${RELEASE:-dvara}"
 CHART="${CHART:-oci://ghcr.io/dvarahq/charts/dvara}"
-CHART_VERSION="${CHART_VERSION:-1.1.0}"          # pin to the published GA tag; use 1.1.0 once cut
-IMAGE_TAG="${IMAGE_TAG:-1.1.0}"                   # never :latest in production
+CHART_VERSION="${CHART_VERSION:-1.2.0}"          # pin to the published GA tag; use 1.2.0 once cut
+IMAGE_TAG="${IMAGE_TAG:-1.2.0}"                   # never :latest in production
 DB_NAME="${DB_NAME:-dvara-pg}"
 DB_SIZE="${DB_SIZE:-db-s-1vcpu-2gb}"
 DB_VERSION="${DB_VERSION:-16}"
@@ -156,6 +156,7 @@ Next:
   kubectl -n ${NS} port-forward svc/${RELEASE}-flightdeck 8090:8090
   open http://localhost:8090/    # walk /setup → create tenant + API key
   # config hot-reload: create a route in the Console, fire a request through
-  # the gateway, confirm it routes WITHOUT a pod restart (PG NOTIFY/LISTEN —
-  # works on the DIRECT :25060 connection; a transaction-mode pool breaks it).
+  # the gateway, confirm it routes WITHOUT a pod restart (config-version poll —
+  # pooler-agnostic; works over the direct :25060 connection or any pool, within
+  # a few seconds).
 EOF

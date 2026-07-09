@@ -12,7 +12,7 @@ Pre-built Grafana dashboards and Prometheus alerting rules for DVARA AI Gateway.
 | FinOps & Budget | `dvara-finops` | Cost by tenant/model/provider, budget enforcement, model downgrades, anomalies |
 | MCP Proxy & Agentic | `dvara-mcp` | Tool calls, agent sessions, loop detection, approval gates, injection detection |
 | Policy & Routing | `dvara-policy-routing` | Shadow policy divergence, canary testing, priority routing, config refresh |
-| Infrastructure | `dvara-infrastructure` | Config listener health, cache cluster, rate-limit counters |
+| Infrastructure | `dvara-infrastructure` | Config poller health, cache cluster, rate-limit counters |
 
 All dashboards include template variables for filtering by tenant, provider, model, and server.
 

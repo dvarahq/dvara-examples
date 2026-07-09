@@ -37,6 +37,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.2.0` | Dvara `1.2.0` |
 | `1.1.0` | Dvara `1.1.0` |
 | `1.0.1` | Dvara `1.0.1` |
 

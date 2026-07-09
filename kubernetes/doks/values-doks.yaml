@@ -8,10 +8,11 @@
 #      Secrets are a plain k8s Secret (created by deploy.sh from generated
 #      values, or your own external secrets manager via existingSecret).
 #   2. DO Managed PostgreSQL — DSN points at the cluster's PRIVATE host on
-#      port 25060 with sslmode=require. Use the DIRECT connection (25060) or
-#      a SESSION-mode connection pool. NEVER a transaction-mode pool: it
-#      breaks PG NOTIFY/LISTEN, which is how config hot-reload propagates
-#      from Flightdeck to the data plane.
+#      port 25060 with sslmode=require. The DIRECT connection (25060) or any
+#      DO Connection Pool — session OR transaction mode — works: config
+#      hot-reload propagates from Flightdeck to the data plane by version-table
+#      polling (dvara.config.poll-interval-ms), which holds no session-pinned
+#      connection and is pooler-agnostic.
 #   3. Traefik v3 ingress — ingress-nginx reached EOL in March 2026, so the
 #      recipe uses Traefik (built-in ACME / Let's Encrypt, no cert-manager).
 #      The chart renders a standard Ingress; Traefik's certresolver issues
@@ -32,7 +33,7 @@ gatewayServer:
   image:
     repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.1.0) or 1.1.0 once cut. Never :latest.
+    # published GA tag (e.g. 1.2.0) or 1.2.0 once cut. Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 

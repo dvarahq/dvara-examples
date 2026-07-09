@@ -1,7 +1,7 @@
 {
   "dashboard": {
     "title": "Dvara Infrastructure",
-    "description": "Distributed rate limiter, PostgreSQL NOTIFY config refresh, and cluster health",
+    "description": "Distributed rate limiter, PostgreSQL config-version poll refresh, and cluster health",
     "tags": ["dvara", "infrastructure", "cache", "config-sync"],
     "timezone": "browser",
     "refresh": "10s",
@@ -101,19 +101,19 @@
         }
       },
       {
-        "title": "PG NOTIFY Listener Alive",
+        "title": "Config Poller Up",
         "type": "stat",
         "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
         "targets": [
           {
-            "expr": "gateway_config_listener_alive",
+            "expr": "gateway_config_poller_up",
             "legendFormat": "{{instance}}"
           }
         ],
         "fieldConfig": {
           "defaults": {
             "mappings": [
-              { "type": "value", "options": { "1": { "text": "ALIVE", "color": "green" }, "0": { "text": "DEAD", "color": "red" } } }
+              { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
             ]
           }
         }
@@ -141,12 +141,12 @@
         }
       },
       {
-        "title": "Listener Reconnections",
+        "title": "Config Poll Errors",
         "type": "stat",
         "gridPos": { "h": 4, "w": 6, "x": 12, "y": 20 },
         "targets": [
           {
-            "expr": "gateway_config_listener_reconnections",
+            "expr": "gateway_config_poller_errors_total",
             "legendFormat": "{{instance}}"
           }
         ],
@@ -163,12 +163,12 @@
         }
       },
       {
-        "title": "Notifications Received",
+        "title": "Config Refreshes Applied",
         "type": "stat",
         "gridPos": { "h": 4, "w": 6, "x": 18, "y": 20 },
         "targets": [
           {
-            "expr": "gateway_config_listener_notifications_received",
+            "expr": "gateway_config_poller_areas_refreshed_total",
             "legendFormat": "{{instance}}"
           }
         ]

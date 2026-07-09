@@ -68,7 +68,7 @@ curl -H 'Authorization: Bearer gw_…' http://localhost:8080/v1/chat/completions
   -d '{"model":"mock/test","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, then fire a request through the gateway and confirm the new routing takes effect **without restarting any pod**. This proves the gateway-server picked up the change from PostgreSQL — on Cloud SQL private IP the `NOTIFY/LISTEN` channel works because it's a direct (non-pooled) connection. If you front Cloud SQL with a transaction-mode pooler, `NOTIFY` breaks and hot-reload silently stops (a known pooler pitfall — keep the connection session/direct).
+**Config hot-reload (the acceptance check):** create or edit a route in the Console, then fire a request through the gateway and confirm the new routing takes effect **without restarting any pod** (allow a few seconds). This proves the gateway-server picked up the change from PostgreSQL. Propagation is by version-table polling (`dvara.config.poll-interval-ms`), which is **pooler-agnostic** — it holds no session-pinned connection, so it works over Cloud SQL private IP directly or behind a pooler in any mode.
 
 ## Workload Identity for secrets (hardened path)
 
@@ -82,7 +82,7 @@ This path needs the GKE Secret Manager CSI provider **and** a CSI volume mount o
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.1.0`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
+`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.2.0`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
 
 ## Related
 

@@ -44,10 +44,10 @@ The script prints the DO Load Balancer IP at the end. Point both A-records at it
 
 ## Database — direct connection, not a transaction pool
 
-The DSN points at the DO Managed PG **private host on port 25060** with `sslmode=require`. DVARA propagates config (routes, policies) from Flightdeck to the data plane over PostgreSQL `LISTEN`/`NOTIFY` — that needs a **direct or session-level** connection.
+The DSN points at the DO Managed PG **private host on port 25060** with `sslmode=require`. DVARA propagates config (routes, policies) from Flightdeck to the data plane by polling a `config_versions` table (`dvara.config.poll-interval-ms`) — **pooler-agnostic**, so a direct connection or a pool in any mode works.
 
-:::warning
-If you front the database with a **DO Connection Pool**, set it to **session** mode. A **transaction-mode** pool silently breaks `NOTIFY`, and config hot-reload stops working — it's the failure mode most specific to managed-DO. The direct `:25060` connection (what this recipe uses) is always safe.
+:::note
+Config hot-reload is **pooler-agnostic**. It propagates by version-table polling (`dvara.config.poll-interval-ms`), which holds no session-pinned connection — so a **DO Connection Pool** in either **session** or **transaction** mode works, as does the direct `:25060` connection (what this recipe uses). (This replaced the older PG `NOTIFY`/`LISTEN` mechanism, which did require a session-level connection.)
 :::
 
 For stronger transport security than `sslmode=require`, download the DO CA cert and switch to `sslmode=verify-full` with the CA mounted.
@@ -70,11 +70,11 @@ kubectl -n dvara port-forward svc/dvara-flightdeck 8090:8090 &
 open http://localhost:8090/                                  # /setup → tenant + API key
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, fire a request through the gateway, and confirm the new routing takes effect **without restarting any pod** — proof the data plane picked up the change over `NOTIFY`/`LISTEN` on the direct `:25060` connection.
+**Config hot-reload (the acceptance check):** create or edit a route in the Console, fire a request through the gateway, and confirm the new routing takes effect **without restarting any pod** (allow a few seconds for the config-version poll) — proof the data plane picked up the change from the `config_versions` poll, which works over the direct `:25060` connection or a pool alike.
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.1.0`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match (e.g. `1.1.0` once cut). Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
+`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.2.0`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match (e.g. `1.2.0` once cut). Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
 
 ## Related
 

@@ -35,8 +35,8 @@ SUBNET="${SUBNET:-default}"
 NS="${NS:-dvara}"
 RELEASE="${RELEASE:-dvara}"
 CHART="${CHART:-oci://ghcr.io/dvarahq/charts/dvara}"
-CHART_VERSION="${CHART_VERSION:-1.1.0}"          # pin to the published GA tag
-IMAGE_TAG="${IMAGE_TAG:-1.1.0}"                   # never :latest in production
+CHART_VERSION="${CHART_VERSION:-1.2.0}"          # pin to the published GA tag
+IMAGE_TAG="${IMAGE_TAG:-1.2.0}"                   # never :latest in production
 SQL_INSTANCE="${SQL_INSTANCE:-dvara-pg}"
 SQL_TIER="${SQL_TIER:-db-custom-1-3840}"
 GSA="${GSA:-dvara-gke}"                           # GCP service account for Workload Identity
@@ -65,9 +65,10 @@ gcloud services enable \
   compute.googleapis.com
 
 # ----------------------------------------------------------------------------
-# 2. Private services access — required so Cloud SQL gets a PRIVATE IP that a
-#    VPC-native cluster reaches directly (the "direct connection" that keeps
-#    PG NOTIFY/LISTEN config hot-reload working).
+# 2. Private services access — gives Cloud SQL a PRIVATE IP that a VPC-native
+#    cluster reaches directly (lower latency, no public exposure). Config
+#    hot-reload is poll-based and pooler-agnostic, so it works over any
+#    connection path — this is a networking choice, not a hot-reload requirement.
 # ----------------------------------------------------------------------------
 say "Private services access for Cloud SQL"
 if ! gcloud compute addresses describe google-managed-services-"$NETWORK" --global >/dev/null 2>&1; then
@@ -237,5 +238,6 @@ Next (see README "Verify"):
   kubectl -n ${NS} port-forward svc/${RELEASE}-flightdeck 8090:8090
   open http://localhost:8090/    # walk /setup → create tenant + API key
   # config hot-reload: create a route in the Console, fire a request through
-  # the gateway, confirm it routes WITHOUT a pod restart (PG NOTIFY/LISTEN).
+  # the gateway, confirm it routes WITHOUT a pod restart (config-version poll,
+  # a few seconds; pooler-agnostic).
 EOF
