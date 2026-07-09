@@ -51,9 +51,9 @@ All images are published on GitHub Container Registry:
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.2.1` | Gateway server (port 8080) |
-| `ghcr.io/dvarahq/dvara/dvara-flightdeck:1.2.1` | Admin dashboard (port 8090) |
-| `ghcr.io/dvarahq/dvara/dvara-mcp-gateway:1.2.1` | MCP proxy server (port 8070) |
+| `ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.2.2` | Gateway server (port 8080) |
+| `ghcr.io/dvarahq/dvara/dvara-flightdeck:1.2.2` | Admin dashboard (port 8090) |
+| `ghcr.io/dvarahq/dvara/dvara-mcp-gateway:1.2.2` | MCP proxy server (port 8070) |
 
 ### Platform
 
@@ -61,7 +61,7 @@ The published images today are **`linux/amd64` only** — every Dvara service in
 
 Native ARM builds are a planned follow-up. Once they land you can remove the `platform:` lines or leave them in place — the explicit pin still works against multi-arch manifests, it just stops being load-bearing.
 
-Tags: `latest` (current release) or a version tag (e.g. `1.2.1`).
+Tags: `latest` (current release) or a version tag (e.g. `1.2.2`).
 
 ## Documentation
 

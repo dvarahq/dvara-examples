@@ -32,12 +32,12 @@ domain:
 
 image:
   # Use the PUBLISHED GA tag. Never :latest.
-  tag: "1.2.1"
+  tag: "1.2.2"
 
 helm:
   release: dvara
   chartRef: oci://ghcr.io/dvarahq/charts/dvara   # the published chart OCI (or a local chart path)
-  chartVersion: "1.2.1"          # pin to the published GA
+  chartVersion: "1.2.2"          # pin to the published GA
   valuesFile: values-gke.yaml    # the helm overlay alongside this file
 
 ingress:

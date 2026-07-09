@@ -24,7 +24,7 @@
 # Install (per region; example: us-east-1):
 #
 #   helm install dvara-us-east oci://ghcr.io/dvarahq/charts/dvara \
-#     --version 1.2.1 \
+#     --version 1.2.2 \
 #     --namespace dvara --create-namespace \
 #     --values ./values.yaml \
 #     --set "gatewayServer.region.id=us-east-1" \

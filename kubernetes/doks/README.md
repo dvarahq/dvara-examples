@@ -74,7 +74,7 @@ open http://localhost:8090/                                  # /setup → tenant
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.2.1`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match (e.g. `1.2.1` once cut). Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
+`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.2.2`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match (e.g. `1.2.2` once cut). Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
 
 ## Related
 
