@@ -23,7 +23,7 @@
 #
 #   # 3. Install (chart published at oci://ghcr.io/dvarahq/charts/dvara):
 #   helm install dvara oci://ghcr.io/dvarahq/charts/dvara \
-#     --version 1.2.5 \
+#     --version 1.3.0 \
 #     --namespace dvara --create-namespace \
 #     --values ./values.yaml \
 #     --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \
@@ -63,7 +63,7 @@ gatewayServer:
   image:
     repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
     # Pin in production. Defaults to Chart.appVersion if unset; both
-    # default-to-`latest` and explicit `1.2.5` work. Use the GA tag.
+    # default-to-`latest` and explicit `1.3.0` work. Use the GA tag.
     tag: ""
     pullPolicy: IfNotPresent
 
