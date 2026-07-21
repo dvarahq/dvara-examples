@@ -36,7 +36,7 @@ App Platform reads the `app.yaml` from the linked subdirectory, prompts for the 
 
 ## Pinning the image tag
 
-Both variants default to `:latest`. For production stability, replace every `image.tag: latest` with the published tag — e.g. `1.3.0` after the GA tag fires. Check the available tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages/container/package/dvara%2Fdvara-llm-gateway).
+Both variants default to `:latest`. For production stability, replace every `image.tag: latest` with the published tag — e.g. `1.4.0` after the GA tag fires. Check the available tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages/container/package/dvara%2Fdvara-llm-gateway).
 
 ## Provider keys — why they're NOT in env vars on the production variant
 
