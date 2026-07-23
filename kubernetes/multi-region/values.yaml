@@ -24,7 +24,7 @@
 # Install (per region; example: us-east-1):
 #
 #   helm install dvara-us-east oci://ghcr.io/dvarahq/charts/dvara \
-#     --version 1.4.0 \
+#     --version 1.5.0 \
 #     --namespace dvara --create-namespace \
 #     --values ./values.yaml \
 #     --set "gatewayServer.region.id=us-east-1" \
@@ -49,7 +49,7 @@ gatewayServer:
   replicaCount: 3
 
   image:
-    repository: ghcr.io/dvarahq/dvara/dvara-llm-gateway
+    repository: ghcr.io/dvarahq/dvara-llm-gateway
     tag: ""
     pullPolicy: IfNotPresent
 

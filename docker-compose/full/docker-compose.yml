@@ -31,7 +31,7 @@ services:
       retries: 5
 
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara/dvara-llm-gateway:1.4.0
+    image: ghcr.io/dvarahq/dvara-llm-gateway-ee:1.5.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -66,7 +66,7 @@ services:
       retries: 3
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara/dvara-flightdeck:1.4.0
+    image: ghcr.io/dvarahq/dvara-flightdeck-ee:1.5.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -97,7 +97,7 @@ services:
       retries: 3
 
   dvara-mcp-gateway:
-    image: ghcr.io/dvarahq/dvara/dvara-mcp-gateway:1.4.0
+    image: ghcr.io/dvarahq/dvara-mcp-gateway:1.5.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -127,7 +127,7 @@ services:
       retries: 3
 
   dvara-a2a-gateway:
-    image: ghcr.io/dvarahq/dvara/dvara-a2a-gateway:1.4.0
+    image: ghcr.io/dvarahq/dvara-a2a-gateway:1.5.0
     platform: linux/amd64
     pull_policy: always
     ports:
