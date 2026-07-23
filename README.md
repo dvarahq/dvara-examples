@@ -51,6 +51,16 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 | `1.1.0` | Dvara `1.1.0` |
 | `1.0.1` | Dvara `1.0.1` |
 
+## Changelog
+
+### [1.5.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.5.0)
+
+- **Version bump** — all Docker Compose stacks (`quick-start`, `multi-provider`, `ollama`, `full`, `with-email`) now pin `ghcr.io/dvarahq/dvara-*:1.5.0`.
+- **License key now optional** — `.env.example` ships with `DVARA_LICENSE_KEY=` blank: blank runs Community Edition; set a `DVARA-` signed envelope for Enterprise.
+- **Kubernetes image path fix** — corrected the image repository to `ghcr.io/dvarahq/dvara-llm-gateway` / `dvara-flightdeck` (removed the stray `/dvara/` path segment) across the DOKS, GKE, multi-region, and single-tenant values.
+
+Full release history: [github.com/dvarahq/dvara-examples/releases](https://github.com/dvarahq/dvara-examples/releases).
+
 ## Documentation
 
 Full product docs at [dvarahq.com/docs](https://dvarahq.com/docs).
