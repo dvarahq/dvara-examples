@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.5.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.5.0)** — compatible with Dvara LLM Gateway `1.5.0`.
+> **Latest release: [1.6.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.6.0)** — compatible with Dvara LLM Gateway `1.6.0`.
 
 ## Contents
 
@@ -18,7 +18,8 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 git clone https://github.com/dvarahq/dvara-examples.git
 cd dvara-examples/docker-compose/quick-start
 cp .env.example .env
-# edit .env — set DVARA_LICENSE_KEY and OPENAI_API_KEY
+# edit .env — set OPENAI_API_KEY. Leave DVARA_LICENSE_KEY blank to run the
+# free Community Edition; set a DVARA- envelope to unlock Enterprise.
 docker compose up -d
 ```
 
@@ -39,6 +40,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.6.0` | Dvara `1.6.0` |
 | `1.5.0` | Dvara `1.5.0` |
 | `1.4.0` | Dvara `1.4.0` |
 | `1.3.0` | Dvara `1.3.0` |
@@ -52,6 +54,12 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 | `1.0.1` | Dvara `1.0.1` |
 
 ## Changelog
+
+### [1.6.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.6.0)
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe, the DigitalOcean recipe, and the jbang GKE tooling now pin `1.6.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.6.0`).
+- **Documented the Community / Enterprise image split.** Since 1.5.0 the images are in two registries' worth of visibility: `dvara-llm-gateway` and `dvara-flightdeck` are **public**, while `dvara-llm-gateway-ee`, `dvara-flightdeck-ee`, `dvara-mcp-gateway`, and `dvara-a2a-gateway` are **private to customers**. Nothing in this repo said so, so the `full/` stack — which uses all four private images — failed on `docker compose pull` with an opaque denial for anyone without registry access. `full/` now has its own README stating the requirement up front, and the image table in [`docker-compose/README.md`](docker-compose/) is split public / private.
+- **Corrected the `full/` stack description** — it has run five services since 1.3.0 (it gained the A2A plane then), but the variants table still listed four and omitted `dvara-a2a-gateway`.
 
 ### [1.5.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.5.0)
 

@@ -11,7 +11,7 @@ All stacks include PostgreSQL — it's required by the gateway and there is no i
 | [`quick-start/`](quick-start) | postgres + dvara-gateway + dvara-flightdeck | Fastest path to a running gateway. OpenAI only. |
 | [`multi-provider/`](multi-provider) | postgres + dvara-gateway + dvara-flightdeck | OpenAI + Anthropic out of the box. More providers (Gemini, Mistral, Cohere, Groq, Azure, Bedrock, Ollama) can be added by uncommenting env vars. |
 | [`ollama/`](ollama) | postgres + dvara-gateway + dvara-flightdeck + ollama | Local models, no external LLM calls. |
-| [`full/`](full) | postgres + dvara-gateway + dvara-flightdeck + dvara-mcp-gateway | Every Dvara component running together — adds the MCP proxy for agent tool governance. |
+| [`full/`](full) | postgres + dvara-gateway + dvara-flightdeck + dvara-mcp-gateway + dvara-a2a-gateway | Every Dvara component running together — adds the MCP proxy for agent tool governance and the A2A proxy for agent-to-agent governance. **Enterprise only** — uses four private images, see [`full/README.md`](full/README.md). |
 | [`with-email/`](with-email) | postgres + dvara-gateway + dvara-flightdeck | Same shape as `quick-start/` with transactional email (`log` / `resend` / `smtp`) + the delivery durability layer (retry / DLQ / idempotency) surfaced for tuning and inspection. |
 
 ## Quick start
@@ -47,13 +47,34 @@ docker compose down -v     # stop and delete postgres volume
 
 ## Images
 
-All images are published on GitHub Container Registry:
+All images live on GitHub Container Registry, but **they are not all public.** Since 1.5.0 the
+Community Edition images ship separately from the Enterprise ones, and the split decides which
+stacks you can run without a customer account.
+
+**Public — pull anonymously, no account:**
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara-llm-gateway:1.5.0` | Gateway server (port 8080) |
-| `ghcr.io/dvarahq/dvara-flightdeck:1.5.0` | Admin dashboard (port 8090) |
-| `ghcr.io/dvarahq/dvara-mcp-gateway:1.5.0` | MCP proxy server (port 8070) |
+| `ghcr.io/dvarahq/dvara-llm-gateway:1.6.0` | Gateway server (port 8080) |
+| `ghcr.io/dvarahq/dvara-flightdeck:1.6.0` | Admin dashboard (port 8090) |
+
+These are what `quick-start/`, `multi-provider/`, `ollama/`, and `with-email/` use. Leave
+`DVARA_LICENSE_KEY` blank and they run the free Community Edition; set a `DVARA-` envelope and the
+same image unlocks Enterprise.
+
+**Private — customers only, requires `docker login ghcr.io`:**
+
+| Image | Description |
+|---|---|
+| `ghcr.io/dvarahq/dvara-llm-gateway-ee:1.6.0` | Gateway server, Enterprise build |
+| `ghcr.io/dvarahq/dvara-flightdeck-ee:1.6.0` | Admin dashboard, Enterprise build |
+| `ghcr.io/dvarahq/dvara-mcp-gateway:1.6.0` | MCP proxy server (port 8070) |
+| `ghcr.io/dvarahq/dvara-a2a-gateway:1.6.0` | A2A proxy server (port 8075) |
+
+Only `full/` uses these, and it uses all four. Without registry access `docker compose pull` fails
+with a denial rather than anything that names the cause — see [`full/README.md`](full/README.md).
+The MCP and A2A planes have **no Community tier at all**: they are Enterprise-only and refuse to
+boot without a valid licence, so a blank `DVARA_LICENSE_KEY` is not an option for that stack.
 
 ### Platform
 
@@ -61,7 +82,7 @@ The published images today are **`linux/amd64` only** — every Dvara service in
 
 Native ARM builds are a planned follow-up. Once they land you can remove the `platform:` lines or leave them in place — the explicit pin still works against multi-arch manifests, it just stops being load-bearing.
 
-Tags: `latest` (current release) or a version tag (e.g. `1.5.0`).
+Tags: `latest` (current release) or a version tag (e.g. `1.6.0`).
 
 ## Documentation
 
