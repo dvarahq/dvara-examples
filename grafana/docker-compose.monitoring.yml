@@ -7,7 +7,7 @@
 #
 #   # 2. Start the base DVARA stack + this overlay:
 #   docker compose \
-#     -f docker-compose/full/docker-compose.yml \
+#     -f docker-compose/quick-start/docker-compose.yml \
 #     -f grafana/docker-compose.monitoring.yml \
 #     up -d
 #

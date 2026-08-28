@@ -77,10 +77,12 @@ instances:
       - service:dvara-gateway
       - env:production
 
-  # ---- MCP Proxy server :8070 (if running separately) ----
+  # ---- RETIRED: MCP Proxy server :8070 ----
   #
-  # Same Bearer requirement — #667 brought mcp-proxy under the
-  # same actuator chain as gateway-server.
+  # As of Dvara 1.7.0 there is no separate MCP process. The MCP plane runs inside
+  # the gateway, so its metrics are already on the gateway's own
+  # /actuator/prometheus above — this block scrapes a host that no longer exists.
+  # Delete it; do not repoint it, or you will scrape the gateway twice.
   - openmetrics_endpoint: http://mcp-proxy-server:8070/actuator/prometheus
     namespace: dvara
     headers:

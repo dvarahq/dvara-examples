@@ -31,9 +31,9 @@ gatewayServer:
   replicaCount: 2          # zero-downtime rolling updates behind the DO LB
 
   image:
-    repository: ghcr.io/dvarahq/dvara-llm-gateway
+    repository: ghcr.io/dvarahq/dvara-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.6.0). Never :latest.
+    # published GA tag (e.g. 1.7.0). Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 

@@ -25,7 +25,7 @@ spec:
       image:
         registry_type: GHCR
         registry: dvarahq
-        repository: dvara/dvara-llm-gateway
+        repository: dvara/dvara-gateway
         tag: latest
       http_port: 8080
       instance_count: 1

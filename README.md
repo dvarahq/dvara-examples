@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.6.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.6.0)** — compatible with Dvara LLM Gateway `1.6.0`.
+> **Latest release: [1.7.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.7.0)** — compatible with Dvara `1.7.0`.
 
 ## Contents
 
@@ -18,8 +18,8 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 git clone https://github.com/dvarahq/dvara-examples.git
 cd dvara-examples/docker-compose/quick-start
 cp .env.example .env
-# edit .env — set OPENAI_API_KEY. Leave DVARA_LICENSE_KEY blank to run the
-# free Community Edition; set a DVARA- envelope to unlock Enterprise.
+# edit .env — set OPENAI_API_KEY. Leaving DVARA_LICENSE_KEY blank still runs
+# everything except the MCP and A2A planes; a DVARA- envelope activates those two.
 docker compose up -d
 ```
 
@@ -40,6 +40,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.7.0` | Dvara `1.7.0` |
 | `1.6.0` | Dvara `1.6.0` |
 | `1.5.0` | Dvara `1.5.0` |
 | `1.4.0` | Dvara `1.4.0` |
@@ -54,6 +55,14 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 | `1.0.1` | Dvara `1.0.1` |
 
 ## Changelog
+
+### [1.7.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.7.0)
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe, the DigitalOcean recipe, and the jbang GKE tooling now pin `1.7.0`.
+- **`dvara-llm-gateway` is now `dvara-gateway`.** The image was renamed; the old package still resolves to pre-release images, so repoint rather than leaving it.
+- **`full/` lost two containers, and they are not coming back.** `dvara-mcp-gateway` (`8070`) and `dvara-a2a-gateway` (`8075`) are **retired images** — the MCP and A2A planes now run inside the gateway process. The paths are unchanged and moved to the gateway on `8080`. Repoint anything addressing `:8070` or `:8075`.
+- **The Community / Enterprise image split is gone.** There are no `-ee` variants and no private packages: there is one artifact per application, all public, and a licence decides what runs. Unlicensed installs get policies, PII, guardrails, audit, budgets and cost attribution; a `DVARA-` envelope additionally activates the MCP and A2A paths. Nothing refuses to boot without one.
+- **`full/` is folded into `quick-start/`.** Once the planes moved into the gateway it was the same three services plus a `DVARA_LICENSE_KEY`, so the directory named a topology that no longer existed. Run `quick-start/` and set a `DVARA-` envelope to get what `full/` gave you.
 
 ### [1.6.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.6.0)
 

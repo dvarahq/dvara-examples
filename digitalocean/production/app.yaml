@@ -8,7 +8,7 @@
 # Pre-deploy checklist:
 #   1. Pin the image tag below to a published rc OR the GA release tag.
 #      `:latest` is convenient but operators usually want stability —
-#      replace `latest` on every `image.tag:` line below with e.g. `1.6.0`.
+#      replace `latest` on every `image.tag:` line below with e.g. `1.7.0`.
 #   2. Mint a production-signed DVARA license envelope. Set
 #      DVARA_LICENSE_KEY at deploy time via App Platform secrets.
 #   3. Generate three distinct random secrets (each `openssl rand -base64
@@ -45,7 +45,7 @@ spec:
       image:
         registry_type: GHCR
         registry: dvarahq
-        repository: dvara/dvara-llm-gateway
+        repository: dvara/dvara-gateway
         tag: latest
       http_port: 8080
       instance_count: 1
@@ -118,7 +118,11 @@ spec:
           scope: RUN_TIME
           value: "-Xmx1024m"
 
-    # ---- MCP Proxy (mcp-proxy-server :8070) — optional ----
+    # ---- RETIRED: MCP Proxy (mcp-proxy-server :8070) ----
+    # Dvara 1.7.0 moved the MCP plane into the gateway process, so there is no
+    # second service to deploy: a licence on the gateway activates /mcp on 8080.
+    # The block below is kept only so an existing deployment can find and remove
+    # it. Do not uncomment it.
     # Uncomment to enable MCP tool governance. Requires the same license,
     # encryption password, and metrics API key. Does NOT need
     # DVARA_ACTUATOR_API_KEY — `/actuator/gateway-status` is gateway-server

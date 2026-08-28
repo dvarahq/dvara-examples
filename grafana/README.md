@@ -42,7 +42,7 @@ chmod 600 grafana/gateway-metrics-api-key
 
 # 2. Start DVARA + monitoring overlay (from the dvara-examples root):
 docker compose \
-  -f docker-compose/full/docker-compose.yml \
+  -f docker-compose/quick-start/docker-compose.yml \
   -f grafana/docker-compose.monitoring.yml \
   up -d
 
@@ -78,5 +78,5 @@ Wire alerts to your notification backend (Slack, PagerDuty, OpsGenie, …) via A
 
 - **[../datadog/](../datadog/)** — same metrics surface, Datadog Agent + monitor definitions instead. Pick one observability stack per environment.
 - **[../kubernetes/](../kubernetes/)** — Helm chart reference values. Set `serviceMonitor.enabled: true` in your values file for Prometheus Operator scraping on Kubernetes instead of this compose overlay.
-- **[../docker-compose/](../docker-compose/)** — base DVARA Compose stacks. This monitoring overlay is designed to compose with `docker-compose/full/`.
+- **[../docker-compose/](../docker-compose/)** — base DVARA Compose stacks. This monitoring overlay is designed to compose with `docker-compose/quick-start/`.
 - **DVARA Prometheus metric reference** — see the [Observability docs](https://dvarahq.com/docs).
