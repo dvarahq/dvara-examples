@@ -70,7 +70,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
       OLLAMA_ENABLED: "true"
       OLLAMA_BASE_URL: http://ollama:11434
-      DVARA_LLM_GATEWAY_REQUIRE_API_KEY: ${DVARA_LLM_GATEWAY_REQUIRE_API_KEY:-false}
     depends_on:
       postgres:
         condition: service_healthy
