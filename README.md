@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.8.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.0)** — compatible with Dvara `1.8.0`.
+> **Latest release: [1.8.1](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.1)** — compatible with Dvara `1.8.1`.
 
 ## Contents
 
@@ -40,6 +40,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.8.1` | Dvara `1.8.1` |
 | `1.8.0` | Dvara `1.8.0` |
 | `1.7.0` | Dvara `1.7.0` |
 | `1.6.0` | Dvara `1.6.0` |
@@ -48,6 +49,12 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.8.1](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.1)
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe, the DigitalOcean recipe, and the jbang GKE tooling now pin `1.8.1` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.8.1`).
+- **Drop-in over 1.8.0.** Nothing in these recipes changes shape: no renamed image, no new service, no moved port.
+- **One setting can stop the gateway starting.** If you turned the ML classifier on and set `provider=onnx-injection`, 1.8.1 removed that provider and the gateway refuses to start. Use `provider=defender`, whose model is in the image and needs no volume. None of these stacks sets it.
 
 ### [1.8.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.0)
 
