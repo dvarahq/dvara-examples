@@ -63,7 +63,6 @@ curl -H "Authorization: Bearer $DVARA_ACTUATOR_API_KEY" \
 
 ## Related
 
-- **[`../digitalocean/`](../digitalocean/)** — App Platform shapes with Managed PG addon
 - **[`../railway/`](../railway/)** — Railway template
 - **[`../render/`](../render/)** — Render Blueprint
 - **[`../kubernetes/`](../kubernetes/)** — Helm chart for full multi-service deploys

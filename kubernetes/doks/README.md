@@ -1,17 +1,17 @@
 # DigitalOcean Kubernetes (DOKS)
 
-Deploy DVARA AI Gateway on [DOKS](https://www.digitalocean.com/products/kubernetes) with **DO Managed PostgreSQL** (direct connection — keeps config hot-reload working), a plain Kubernetes Secret, and **Traefik v3** ingress with built-in Let's Encrypt TLS.
+Deploy DVARA AI Gateway on [DOKS](https://www.digitalocean.com/products/kubernetes) with **DO Managed PostgreSQL** for Flightdeck, a plain Kubernetes Secret, and **Traefik v3** ingress with built-in Let's Encrypt TLS.
 
 This is the cloud-agnostic dvara Helm chart (`oci://ghcr.io/dvarahq/charts/dvara`) with a thin DO overlay — **no DOKS-specific chart code**. It differs from the [GKE recipe](../gke/) in just three places: no Workload Identity (DO has none — secrets are a plain k8s Secret), DO Managed PG instead of Cloud SQL, and Traefik instead of GCE Ingress. See [../README.md](../README.md) for the shared chart reference.
 
-> **DOKS ≠ App Platform.** DVARA also has a [DigitalOcean **App Platform**](../../digitalocean/) (PaaS) recipe — that's the no-Kubernetes path. This folder is for **managed Kubernetes** (DOKS).
+> **On DigitalOcean, DVARA runs on DOKS (this folder) or on a Droplet running one of the [Docker Compose stacks](../../docker-compose/).** App Platform is not supported: from 1.8.2 the gateway enrols with Flightdeck over an internal port and keeps a spool on a volume, which this folder and the Compose stacks provide.
 
 | File | What it is |
 |---|---|
 | **[deploy.sh](deploy.sh)** | End-to-end scripted path: `doctl` cluster → DO Managed PG → Traefik v3 → secrets → `helm install` → verify. Idempotent-ish. |
 | **[values-doks.yaml](values-doks.yaml)** | The DO overlay — DO Managed PG DSN via `extraEnv` (password via `secretKeyRef`), Traefik ingress + Let's Encrypt, plain-Secret `existingSecret`. |
 
-## Secrets (five platform secrets + the DB password)
+## Secrets (six platform secrets + the DB password)
 
 Each generated with `openssl rand -base64 32` except the license. `deploy.sh` mints them and stores them as a plain k8s Secret (DO has no Secret Manager / Workload Identity equivalent — if you run an external secrets manager like Vault or Doppler, point `secrets.existingSecret` at its synced Secret instead).
 
@@ -19,9 +19,10 @@ Each generated with `openssl rand -base64 32` except the license. `deploy.sh` mi
 |---|---|
 | `enterprise-license-key` | Signed `DVARA-…` envelope; validated at boot |
 | `gateway-encryption-master-password` | AES-256-GCM key for `ENCRYPTED`-mode credentials — **loss is unrecoverable, escrow offline** |
-| `gateway-server-api-key` | Bearer for `/actuator/gateway-status` |
+| `llm-gateway-server-api-key` | Bearer for `/actuator/gateway-status` |
 | `gateway-metrics-api-key` | Bearer for `/actuator/prometheus` — **must differ** from the above |
 | `audit-hmac-secret` | HMAC-SHA256 key signing the audit chain |
+| `enrolment-shared-secret` | The gateway enrols with Flightdeck using it (1.8.2); at least 32 characters |
 
 Provider keys are **not** env vars — DVARA uses BYOK (tenant keys live AES-encrypted in the DB, added via the Console after install).
 
@@ -42,13 +43,9 @@ export ACME_EMAIL=ops@example.com
 
 The script prints the DO Load Balancer IP at the end. Point both A-records at it; Traefik issues the Let's Encrypt certs within a few minutes of DNS resolving.
 
-## Database — direct connection, not a transaction pool
+## Database — only Flightdeck connects
 
-The DSN points at the DO Managed PG **private host on port 25060** with `sslmode=require`. DVARA propagates config (routes, policies) from Flightdeck to the data plane by polling a `config_versions` table (`dvara.config.poll-interval-ms`) — **pooler-agnostic**, so a direct connection or a pool in any mode works.
-
-:::note
-Config hot-reload is **pooler-agnostic**. It propagates by version-table polling (`dvara.config.poll-interval-ms`), which holds no session-pinned connection — so a **DO Connection Pool** in either **session** or **transaction** mode works, as does the direct `:25060` connection (what this recipe uses). (This replaced the older PG `NOTIFY`/`LISTEN` mechanism, which did require a session-level connection.)
-:::
+The DSN points at the DO Managed PG **private host on port 25060** with `sslmode=require`, and only Flightdeck uses it: since 1.8.2 the gateway has no database. It enrols with Flightdeck inside the cluster and gets its configuration from it, so a change saved in the Console reaches the gateways in about 10 seconds. The direct `:25060` connection (what this recipe uses) or a **DO Connection Pool** in either **session** or **transaction** mode works.
 
 For stronger transport security than `sslmode=require`, download the DO CA cert and switch to `sslmode=verify-full` with the CA mounted.
 
@@ -70,15 +67,15 @@ kubectl -n dvara port-forward svc/dvara-flightdeck 8090:8090 &
 open http://localhost:8090/                                  # /setup → tenant + API key
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, fire a request through the gateway, and confirm the new routing takes effect **without restarting any pod** (allow a few seconds for the config-version poll) — proof the data plane picked up the change from the `config_versions` poll, which works over the direct `:25060` connection or a pool alike.
+**Config hot-reload (the acceptance check):** create or edit a route in the Console, fire a request through the gateway, and confirm the new routing takes effect **without restarting any pod** (allow about 10 seconds) — proof the gateway picked up the change from Flightdeck.
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.8.1`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match. Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
+`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.8.2`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match. Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
 
 ## Related
 
 - **[../gke/](../gke/)** — the GKE recipe (Cloud SQL + Workload Identity + GCE Ingress)
 - **[../README.md](../README.md)** — generic chart reference (single-tenant, multi-region)
-- **[../../digitalocean/](../../digitalocean/)** — DO **App Platform** (PaaS, no Kubernetes)
+- **[../../docker-compose/](../../docker-compose/)** — Compose stacks, for a single Droplet
 - **[../../getting-started/](../../getting-started/)** — first-request scripts

@@ -2,23 +2,28 @@
 
 Ready-to-run stacks for the Dvara LLM Gateway. Each subdirectory is self-contained — `cd` into one, copy `.env.example` to `.env`, and run `docker compose up -d`.
 
-All stacks include PostgreSQL — it's required by the gateway and there is no in-memory fallback.
+All stacks include PostgreSQL — Flightdeck requires it and there is no in-memory fallback.
+
+**Since 1.8.2 the gateway has no database.** Flightdeck is the only service that connects to
+PostgreSQL, so it starts first. The gateway enrols with it using `DVARA_ENROLMENT_SECRET`, gets
+its configuration from it, and sends its audit and usage records back through a spool on the
+`gateway-data` volume. A change saved in Flightdeck reaches the gateway in about 10 seconds.
 
 ## Variants
 
 | Directory | Services | When to use |
 |---|---|---|
-| [`quick-start/`](quick-start) | postgres + dvara-gateway + dvara-flightdeck | Fastest path to a running gateway. OpenAI only. |
-| [`multi-provider/`](multi-provider) | postgres + dvara-gateway + dvara-flightdeck | OpenAI + Anthropic out of the box. More providers (Gemini, Mistral, Cohere, Groq, Azure, Bedrock, Ollama) can be added by uncommenting env vars. |
-| [`ollama/`](ollama) | postgres + dvara-gateway + dvara-flightdeck + ollama | Local models, no external LLM calls. |
-| [`with-email/`](with-email) | postgres + dvara-gateway + dvara-flightdeck | Same shape as `quick-start/` with transactional email (`log` / `resend` / `smtp`) + the delivery durability layer (retry / DLQ / idempotency) surfaced for tuning and inspection. |
+| [`quick-start/`](quick-start) | postgres + dvara-flightdeck + dvara-gateway | Fastest path to a running gateway. OpenAI only. |
+| [`multi-provider/`](multi-provider) | postgres + dvara-flightdeck + dvara-gateway | OpenAI + Anthropic out of the box. More providers (Gemini, Mistral, Cohere, Groq, Azure, Bedrock, Ollama) can be added by uncommenting env vars. |
+| [`ollama/`](ollama) | postgres + dvara-flightdeck + dvara-gateway + ollama | Local models, no external LLM calls. |
+| [`with-email/`](with-email) | postgres + dvara-flightdeck + dvara-gateway | Same shape as `quick-start/` with transactional email (`log` / `resend` / `smtp`) + the delivery durability layer (retry / DLQ / idempotency) surfaced for tuning and inspection. |
 
 ## Quick start
 
 ```bash
 cd quick-start
 cp .env.example .env
-# edit .env — set DVARA_LICENSE_KEY and OPENAI_API_KEY
+# edit .env — set DVARA_ENROLMENT_SECRET, the other secrets, and OPENAI_API_KEY
 
 docker compose up -d
 docker compose ps
@@ -33,7 +38,7 @@ Then:
 ## Requirements
 
 - Docker 20.10+ with Compose v2
-- A Dvara **self-hosted** license envelope (`DVARA-…` prefix, Ed25519-signed). The **Start Free Trial** button on [dvarahq.com](https://dvarahq.com) provisions a hosted SaaS account — it does **not** email a self-hosted envelope. For a self-hosted trial, fill in the [Book a demo](https://dvarahq.com/#book-demo) form (mention you need a trial license for a self-hosted install) or email [support@dvarahq.com](mailto:support@dvarahq.com). Typical turnaround is the same business day.
+- No licence to try it. Without one every feature runs, limited to 3 workspaces and 100,000 calls a month, for non-production use. For production, a `DVARA-` licence from your account team lifts the limits: [Book a demo](https://dvarahq.com/#book-demo) or email [support@dvarahq.com](mailto:support@dvarahq.com).
 - For `quick-start/`, `multi-provider/`: at least one provider API key
 - For `ollama/`: no provider keys needed (local inference)
 
@@ -41,7 +46,7 @@ Then:
 
 ```bash
 docker compose down        # stop, keep data
-docker compose down -v     # stop and delete postgres volume
+docker compose down -v     # stop and delete the postgres and gateway-data volumes
 ```
 
 ## Images
@@ -51,16 +56,15 @@ account and no `docker login`.
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara-gateway:1.8.1` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
-| `ghcr.io/dvarahq/dvara-flightdeck:1.8.1` | DVARA Console / admin dashboard (port `8090`) |
+| `ghcr.io/dvarahq/dvara-gateway:1.8.2` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
+| `ghcr.io/dvarahq/dvara-flightdeck:1.8.2` | DVARA Console / admin dashboard (port `8090`) |
 
-Every stack here uses those two. **There is one artifact per application**, and what you get is
-decided by your licence rather than by which image you pulled:
+Every stack here uses those two. **There is one artifact per application**, and every feature
+runs in it, including the MCP and A2A planes:
 
-- **No licence** — the gateway and Console run with policies, PII, guardrails, audit, budgets and
-  cost attribution. The `/mcp` and `/a2a` paths are not registered, and a request there answers
-  `404`.
-- **A `DVARA-` envelope** — the same images additionally activate the MCP and A2A planes.
+- **No licence** — limited to 3 workspaces and 100,000 calls a month, for non-production use.
+- **A `DVARA-` licence** — no limits. Set it in `.env` before the first start, or on Flightdeck's
+  Licence page at any time; no restart is needed.
 
 ### Two retired images, and the stack that went with them
 
@@ -72,7 +76,7 @@ ports no longer exist**: the planes moved into the gateway process. Repoint anyt
 **`full/` is gone too, and was folded into `quick-start/`.** Once the planes moved, it was the same
 three services plus a `DVARA_LICENSE_KEY` — a directory whose name described a topology that no
 longer existed. To get what `full/` used to give you: run `quick-start/` and set a `DVARA-` envelope
-in `.env`. Nothing else differs.
+in `.env` if you need more than the unlicensed limits. Nothing else differs.
 
 The earlier public/private split is gone with them: there are no `-ee` image variants any more.
 
@@ -82,7 +86,7 @@ The published images today are **`linux/amd64` only** — every Dvara service in
 
 Native ARM builds are a planned follow-up. Once they land you can remove the `platform:` lines or leave them in place — the explicit pin still works against multi-arch manifests, it just stops being load-bearing.
 
-Tags: `latest` (current release) or a version tag (e.g. `1.8.1`).
+Tags: `latest` (current release) or a version tag (e.g. `1.8.2`).
 
 ## Documentation
 

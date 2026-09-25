@@ -21,6 +21,7 @@ export DVARA_AUDIT_HMAC_SECRET=$(openssl rand -base64 32)
 export DVARA_ENCRYPTION_MASTER_PASSWORD=$(openssl rand -base64 32)
 export DVARA_ACTUATOR_API_KEY=$(openssl rand -base64 32)
 export DVARA_ACTUATOR_METRICS_API_KEY=$(openssl rand -base64 32)
+export DVARA_ENROLMENT_SECRET=$(openssl rand -base64 32)   # gateway enrolment with Flightdeck (1.8.2)
 export DVARA_DB_PASSWORD=$(openssl rand -base64 24)
 # optional: export OPENAI_API_KEY=… ANTHROPIC_API_KEY=…
 ```
@@ -44,7 +45,7 @@ create/apply commands; read-backs still need real `gcloud`).
 `provision` = APIs → private-services VPC peering → VPC-native GKE + Workload Identity →
 private-IP Cloud SQL → DB+user → (secret-manager mode) Secret Manager secrets + WI binding.
 `install` = `get-credentials` → namespace → k8s Secret (or SecretProviderClass) → `helm
-upgrade --install` with `values-gke.yaml` + the Cloud SQL private-IP DSN. Each step is
+upgrade --install` with `values-gke.yaml` + the Cloud SQL private-IP DSN on Flightdeck (the gateway has no database since 1.8.2). Each step is
 `describe → (exists? skip : create)`, so a re-run after a partial failure resumes.
 
 ## Tests

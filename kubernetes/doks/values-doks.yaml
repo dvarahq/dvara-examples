@@ -7,12 +7,11 @@
 #   1. No Workload Identity — DigitalOcean has no per-pod cloud identity.
 #      Secrets are a plain k8s Secret (created by deploy.sh from generated
 #      values, or your own external secrets manager via existingSecret).
-#   2. DO Managed PostgreSQL — DSN points at the cluster's PRIVATE host on
-#      port 25060 with sslmode=require. The DIRECT connection (25060) or any
-#      DO Connection Pool — session OR transaction mode — works: config
-#      hot-reload propagates from Flightdeck to the data plane by version-table
-#      polling (dvara.config.poll-interval-ms), which holds no session-pinned
-#      connection and is pooler-agnostic.
+#   2. DO Managed PostgreSQL — Flightdeck's DSN points at the cluster's
+#      PRIVATE host on port 25060 with sslmode=require. The DIRECT connection
+#      (25060) or any DO Connection Pool — session OR transaction mode —
+#      works. Only Flightdeck connects: the gateway has no database (1.8.2)
+#      and gets its configuration from Flightdeck.
 #   3. Traefik v3 ingress — ingress-nginx reached EOL in March 2026, so the
 #      recipe uses Traefik (built-in ACME / Let's Encrypt, no cert-manager).
 #      The chart renders a standard Ingress; Traefik's certresolver issues
@@ -26,14 +25,13 @@ global:
   imageRegistry: ""
   imagePullSecrets: []
 
-gatewayServer:
-  enabled: true
+llmGatewayServer:
   replicaCount: 2          # zero-downtime rolling updates behind the DO LB
 
   image:
     repository: ghcr.io/dvarahq/dvara-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.8.1). Never :latest.
+    # published GA tag (e.g. 1.8.2). Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 
@@ -47,25 +45,18 @@ gatewayServer:
 
   javaOpts: "-Xms256m -Xmx768m"
 
-  # DO Managed PG — PRIVATE host, port 25060, SSL required. Password via
-  # secretKeyRef (kept out of plaintext values + shell history).
-  extraEnv:
-    - name: SPRING_DATASOURCE_URL
-      value: "jdbc:postgresql://@@DB_PRIVATE_HOST@@:25060/dvara?sslmode=require"
-    - name: SPRING_DATASOURCE_USERNAME
-      value: "dvara"
-    - name: SPRING_DATASOURCE_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: dvara-db
-          key: password
+  # A volume per pod for the spool, the config snapshot and the enrolled
+  # certificate. Switches the gateway from a Deployment to a StatefulSet.
+  # The gateway has no database (1.8.2): only Flightdeck connects to it.
+  persistence:
+    enabled: true
+    size: 10Gi
 
   pdb:
     enabled: true
     minAvailable: 1
 
 flightdeck:
-  enabled: true
   replicaCount: 1
   image:
     repository: ghcr.io/dvarahq/dvara-flightdeck
@@ -87,13 +78,11 @@ flightdeck:
           name: dvara-db
           key: password
 
-# MCP proxy off by default — metered separately under the usage-unit model.
-mcpProxyServer:
-  enabled: false
 
 # Platform secrets (license / encryption password / 2 actuator Bearers /
-# audit HMAC) as a plain k8s Secret created by deploy.sh. The chart's
-# provider-key refs are optional:true, so it carries only these 5 keys.
+# audit HMAC / gateway enrolment secret) as a plain k8s Secret created by
+# deploy.sh. The chart's provider-key refs are optional:true, so it carries
+# only these 6 keys.
 secrets:
   create: false
   existingSecret: dvara-platform

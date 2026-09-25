@@ -1,17 +1,17 @@
 # Google Kubernetes Engine (GKE)
 
-Deploy DVARA AI Gateway on [GKE](https://cloud.google.com/kubernetes-engine) with **Cloud SQL** (managed PostgreSQL, private IP — a direct connection that keeps config hot-reload working), **Workload Identity**, and a **GCE Ingress** fronted by a Google-managed TLS certificate.
+Deploy DVARA AI Gateway on [GKE](https://cloud.google.com/kubernetes-engine) with **Cloud SQL** (managed PostgreSQL for Flightdeck, private IP), **Workload Identity**, and a **GCE Ingress** fronted by a Google-managed TLS certificate.
 
-This is the cloud-agnostic dvara Helm chart (`oci://ghcr.io/dvarahq/charts/dvara`) with a thin GCP overlay — **no GKE-specific chart code**. The chart already exposes every knob GKE needs: per-component `serviceAccount.annotations` (Workload Identity), `extraEnv` (the Cloud SQL DSN), `ingress.className`/`annotations` (GCE), and `secrets.existingSecret`. See [../README.md](../README.md) for the shared single-tenant / multi-region reference values.
+This is the cloud-agnostic dvara Helm chart (`oci://ghcr.io/dvarahq/charts/dvara`) with a thin GCP overlay — **no GKE-specific chart code**. The chart already exposes every knob GKE needs: per-component `serviceAccount.annotations` (Workload Identity), `extraEnv` (the Cloud SQL DSN, on Flightdeck), `ingress.className`/`annotations` (GCE), and `secrets.existingSecret`. See [../README.md](../README.md) for the shared single-tenant / multi-region reference values.
 
 | File | What it is |
 |---|---|
 | **[deploy.sh](deploy.sh)** | End-to-end scripted path: APIs → VPC-native cluster → Cloud SQL (private IP) → Workload Identity → secrets → `helm install` → verify. Idempotent-ish; re-runs resume. |
-| **[values-gke.yaml](values-gke.yaml)** | The GCP overlay — pinned WI service-account names, GCE Ingress, Cloud SQL DSN via `extraEnv` (password via `secretKeyRef`). |
+| **[values-gke.yaml](values-gke.yaml)** | The GCP overlay — pinned WI service-account names, GCE Ingress, Cloud SQL DSN via Flightdeck's `extraEnv` (password via `secretKeyRef`). The gateway has no database since 1.8.2. |
 | **[managed-certificate.yaml](managed-certificate.yaml)** | The `ManagedCertificate` CRD for Google-managed TLS (used when you set a domain). |
 | **[secretproviderclass.yaml](secretproviderclass.yaml)** | Optional — the Secret Manager → k8s Secret projection for the hardened "Workload Identity for secrets" path. |
 
-## Secrets (five platform secrets + the DB password)
+## Secrets (six platform secrets + the DB password)
 
 Each generated with `openssl rand -base64 32` except the license. `deploy.sh` mints them for you.
 
@@ -22,6 +22,7 @@ Each generated with `openssl rand -base64 32` except the license. `deploy.sh` mi
 | `DVARA_ACTUATOR_API_KEY` | Bearer for `/actuator/gateway-status` | flightdeck's status probe. |
 | `DVARA_ACTUATOR_METRICS_API_KEY` | Bearer for `/actuator/prometheus` | **Must differ** from the above. |
 | `DVARA_AUDIT_HMAC_SECRET` | HMAC-SHA256 key signing the audit chain | A mismatch across pods breaks the chain; production profiles refuse the dev placeholder. |
+| `DVARA_ENROLMENT_SECRET` | The gateway enrols with Flightdeck using it (1.8.2) | At least 32 characters. Stored under the chart key `enrolment-shared-secret`. |
 
 Provider keys are **not** env vars here — DVARA uses the BYOK model (tenant keys live AES-encrypted in `dvara_main.provider_credentials`, added via the Console after install).
 
@@ -68,7 +69,7 @@ curl -H 'Authorization: Bearer gw_…' http://localhost:8080/v1/chat/completions
   -d '{"model":"mock/test","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, then fire a request through the gateway and confirm the new routing takes effect **without restarting any pod** (allow a few seconds). This proves the gateway-server picked up the change from PostgreSQL. Propagation is by version-table polling (`dvara.config.poll-interval-ms`), which is **pooler-agnostic** — it holds no session-pinned connection, so it works over Cloud SQL private IP directly or behind a pooler in any mode.
+**Config hot-reload (the acceptance check):** create or edit a route in the Console, then fire a request through the gateway and confirm the new routing takes effect **without restarting any pod** (allow a few seconds). This proves the gateway picked up the change from Flightdeck: since 1.8.2 the gateway has no database, and a change reaches it in about 10 seconds. Only Flightdeck connects to Cloud SQL, directly over the private IP or behind a pooler in any mode.
 
 ## Workload Identity for secrets (hardened path)
 
@@ -78,11 +79,11 @@ curl -H 'Authorization: Bearer gw_…' http://localhost:8080/v1/chat/completions
 SECRET_MODE=secret-manager ./deploy.sh
 ```
 
-This path needs the GKE Secret Manager CSI provider **and** a CSI volume mount on the pods so the `secretObjects` sync fires. The exact enablement (the managed `--enable-secret-manager` add-on vs the community `secrets-store-csi-driver` + GCP provider) varies by GKE version — **confirm for your cluster** before relying on it. The chart's provider-key `secretKeyRef`s are all `optional: true`, so the projected Secret only needs the five platform keys.
+This path needs the GKE Secret Manager CSI provider **and** a CSI volume mount on the pods so the `secretObjects` sync fires. The exact enablement (the managed `--enable-secret-manager` add-on vs the community `secrets-store-csi-driver` + GCP provider) varies by GKE version — **confirm for your cluster** before relying on it. The chart's provider-key `secretKeyRef`s are all `optional: true`, so the projected Secret only needs the six platform keys.
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.8.1`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
+`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.8.2`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
 
 ## Related
 
