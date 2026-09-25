@@ -35,8 +35,8 @@ SUBNET="${SUBNET:-default}"
 NS="${NS:-dvara}"
 RELEASE="${RELEASE:-dvara}"
 CHART="${CHART:-oci://ghcr.io/dvarahq/charts/dvara}"
-CHART_VERSION="${CHART_VERSION:-1.8.1}"          # pin to the published GA tag
-IMAGE_TAG="${IMAGE_TAG:-1.8.1}"                   # never :latest in production
+CHART_VERSION="${CHART_VERSION:-1.8.2}"          # pin to the published GA tag
+IMAGE_TAG="${IMAGE_TAG:-1.8.2}"                   # never :latest in production
 SQL_INSTANCE="${SQL_INSTANCE:-dvara-pg}"
 SQL_TIER="${SQL_TIER:-db-custom-1-3840}"
 GSA="${GSA:-dvara-gke}"                           # GCP service account for Workload Identity
@@ -132,14 +132,16 @@ done
 
 # ----------------------------------------------------------------------------
 # 6. Platform secrets (license / encryption password / 2 actuator Bearers /
-#    audit HMAC) + DB password. The chart's provider-key refs are optional:true,
-#    so the platform Secret carries only these five keys.
+#    audit HMAC / gateway enrolment secret) + DB password. The chart's
+#    provider-key refs are optional:true, so the platform Secret carries only
+#    these six keys.
 # ----------------------------------------------------------------------------
 say "Platform secrets (mode: ${SECRET_MODE})"
 ENC="$(openssl rand -base64 32)"
 ACT="$(openssl rand -base64 32)"
 MET="$(openssl rand -base64 32)"
 HMAC="$(openssl rand -base64 32)"
+ENROL="$(openssl rand -base64 32)"   # gateway enrolment with Flightdeck (1.8.2)
 [ "$ACT" != "$MET" ] || { echo "actuator keys collided — rerun"; exit 1; }
 
 # DB password Secret (referenced by values-gke.yaml secretKeyRef name=dvara-db).
@@ -156,6 +158,7 @@ if [ "$SECRET_MODE" = "secret-manager" ]; then
     [dvara-actuator-api-key]="$ACT"
     [dvara-actuator-metrics-api-key]="$MET"
     [dvara-audit-hmac-secret]="$HMAC"
+    [dvara-enrolment-shared-secret]="$ENROL"
   )
   for name in "${!SM[@]}"; do
     gcloud secrets describe "$name" >/dev/null 2>&1 || gcloud secrets create "$name" --replication-policy=automatic
@@ -171,9 +174,11 @@ else
   kubectl -n "$NS" create secret generic dvara-platform \
     --from-literal=enterprise-license-key="$DVARA_LICENSE_KEY" \
     --from-literal=gateway-encryption-master-password="$ENC" \
-    --from-literal=gateway-server-api-key="$ACT" \
+    --from-literal=llm-gateway-server-api-key="$ACT" \
     --from-literal=gateway-metrics-api-key="$MET" \
     --from-literal=audit-hmac-secret="$HMAC" \
+  --from-literal=enrolment-shared-secret="$ENROL" \
+    --from-literal=enrolment-shared-secret="$ENROL" \
     --dry-run=client -o yaml | kubectl apply -f -
 fi
 
@@ -197,13 +202,13 @@ sed "s/@@PROJECT_ID@@/${PROJECT_ID}/g;
      s/@@FLIGHTDECK_HOST@@/${FLIGHTDECK_HOST}/g" "$HERE/values-gke.yaml" > "$RENDERED"
 
 HELM_EXTRA=()
-HELM_EXTRA+=(--set "gatewayServer.image.tag=${IMAGE_TAG}")
+HELM_EXTRA+=(--set "llmGatewayServer.image.tag=${IMAGE_TAG}")
 HELM_EXTRA+=(--set "flightdeck.image.tag=${IMAGE_TAG}")
 if [ -z "$BASE_DOMAIN" ]; then
   # IP-only smoke: no managed cert, allow HTTP, host = the static IP.
   HELM_EXTRA+=(--set "ingress.annotations.networking\.gke\.io/managed-certificates=null")
   HELM_EXTRA+=(--set "ingress.annotations.kubernetes\.io/ingress\.allow-http=true")
-  HELM_EXTRA+=(--set "ingress.gatewayServer.hosts[0].host=${INGRESS_IP}")
+  HELM_EXTRA+=(--set "ingress.llmGatewayServer.hosts[0].host=${INGRESS_IP}")
   echo "IP-only smoke — Console will be reachable at http://${INGRESS_IP}/ once the LB is up."
 fi
 
@@ -225,6 +230,8 @@ fi
 # ----------------------------------------------------------------------------
 say "Rollout + health"
 kubectl -n "$NS" rollout status deploy -l app.kubernetes.io/instance="$RELEASE" --timeout=5m
+# The gateway is a StatefulSet (llmGatewayServer.persistence.enabled).
+kubectl -n "$NS" rollout status statefulset -l app.kubernetes.io/instance="$RELEASE" --timeout=5m
 kubectl -n "$NS" get pods
 
 cat <<EOF

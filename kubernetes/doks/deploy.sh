@@ -34,8 +34,8 @@ K8S_VERSION="${K8S_VERSION:-}"                   # empty → latest; or e.g. 1.3
 NS="${NS:-dvara}"
 RELEASE="${RELEASE:-dvara}"
 CHART="${CHART:-oci://ghcr.io/dvarahq/charts/dvara}"
-CHART_VERSION="${CHART_VERSION:-1.8.1}"          # pin to the published GA tag
-IMAGE_TAG="${IMAGE_TAG:-1.8.1}"                   # never :latest in production
+CHART_VERSION="${CHART_VERSION:-1.8.2}"          # pin to the published GA tag
+IMAGE_TAG="${IMAGE_TAG:-1.8.2}"                   # never :latest in production
 DB_NAME="${DB_NAME:-dvara-pg}"
 DB_SIZE="${DB_SIZE:-db-s-1vcpu-2gb}"
 DB_VERSION="${DB_VERSION:-16}"
@@ -108,6 +108,7 @@ ENC="$(openssl rand -base64 32)"
 ACT="$(openssl rand -base64 32)"
 MET="$(openssl rand -base64 32)"
 HMAC="$(openssl rand -base64 32)"
+ENROL="$(openssl rand -base64 32)"   # gateway enrolment with Flightdeck (1.8.2)
 [ "$ACT" != "$MET" ] || { echo "actuator keys collided — rerun"; exit 1; }
 
 kubectl -n "$NS" create secret generic dvara-db \
@@ -117,9 +118,10 @@ kubectl -n "$NS" create secret generic dvara-db \
 kubectl -n "$NS" create secret generic dvara-platform \
   --from-literal=enterprise-license-key="$DVARA_LICENSE_KEY" \
   --from-literal=gateway-encryption-master-password="$ENC" \
-  --from-literal=gateway-server-api-key="$ACT" \
+  --from-literal=llm-gateway-server-api-key="$ACT" \
   --from-literal=gateway-metrics-api-key="$MET" \
   --from-literal=audit-hmac-secret="$HMAC" \
+  --from-literal=enrolment-shared-secret="$ENROL" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # ----------------------------------------------------------------------------
@@ -134,7 +136,7 @@ helm upgrade --install "$RELEASE" "$CHART" \
   --version "$CHART_VERSION" \
   --namespace "$NS" --create-namespace \
   --values "$RENDERED" \
-  --set "gatewayServer.image.tag=${IMAGE_TAG}" \
+  --set "llmGatewayServer.image.tag=${IMAGE_TAG}" \
   --set "flightdeck.image.tag=${IMAGE_TAG}" \
   --wait --timeout 10m
 
@@ -143,6 +145,8 @@ helm upgrade --install "$RELEASE" "$CHART" \
 # ----------------------------------------------------------------------------
 say "Rollout + health"
 kubectl -n "$NS" rollout status deploy -l app.kubernetes.io/instance="$RELEASE" --timeout=5m
+# The gateway is a StatefulSet (llmGatewayServer.persistence.enabled).
+kubectl -n "$NS" rollout status statefulset -l app.kubernetes.io/instance="$RELEASE" --timeout=5m
 kubectl -n "$NS" get pods
 LB_IP="$(kubectl -n traefik get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
 

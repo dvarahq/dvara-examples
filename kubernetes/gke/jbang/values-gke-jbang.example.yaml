@@ -1,6 +1,6 @@
 # DvaraGke jbang values — NON-SECRET config only.
 # Secrets are read from the ENVIRONMENT, never this file:
-#   DVARA_LICENSE_KEY, DVARA_AUDIT_HMAC_SECRET, DVARA_ENCRYPTION_MASTER_PASSWORD,
+#   DVARA_LICENSE_KEY, DVARA_ENROLMENT_SECRET, DVARA_AUDIT_HMAC_SECRET, DVARA_ENCRYPTION_MASTER_PASSWORD,
 #   DVARA_ACTUATOR_API_KEY, DVARA_ACTUATOR_METRICS_API_KEY, DVARA_DB_PASSWORD,
 #   OPENAI_API_KEY (optional), ANTHROPIC_API_KEY (optional).
 #
@@ -32,12 +32,12 @@ domain:
 
 image:
   # Use the PUBLISHED GA tag. Never :latest.
-  tag: "1.8.1"
+  tag: "1.8.2"
 
 helm:
   release: dvara
   chartRef: oci://ghcr.io/dvarahq/charts/dvara   # the published chart OCI (or a local chart path)
-  chartVersion: "1.8.1"          # pin to the published GA
+  chartVersion: "1.8.2"          # pin to the published GA
   valuesFile: values-gke.yaml    # the helm overlay alongside this file
 
 ingress:

@@ -190,12 +190,11 @@ public class DvaraGke {
         c.st.helmRelease = release;
 
         // The chart carries per-component image tags (no global tag); apply the one
-        // configured tag to all three runnable components. Default to the published GA.
+        // configured tag to both runnable components. Default to the published GA.
         var setValues = new LinkedHashMap<String, String>();
-        String tag = c.v.text("image.tag", "1.5.0");
-        setValues.put("gatewayServer.image.tag", tag);
+        String tag = c.v.text("image.tag", "1.8.2");
+        setValues.put("llmGatewayServer.image.tag", tag);
         setValues.put("flightdeck.image.tag", tag);
-        setValues.put("mcpProxyServer.image.tag", tag);
 
         if ("secret-manager".equals(c.secretMode)) {
             // CSI driver mounts secrets; bind the KSA to the GSA + apply the provider class.
@@ -209,12 +208,12 @@ public class DvaraGke {
             helm.applySecret(c.namespace, c.v.text("secrets.existingSecret", "dvara-secrets"), data);
         }
 
-        // The chart has no database section — inject the DSN into the runnable
-        // components via extraEnv. URL carries the dynamic Cloud SQL private IP;
+        // The chart has no database section — inject the DSN into Flightdeck via
+        // extraEnv. Only Flightdeck connects: the gateway has no database (1.8.2). URL carries the dynamic Cloud SQL private IP;
         // username is plain; password comes from the Secret via secretKeyRef.
         String secretName = c.v.text("secrets.existingSecret", "dvara-secrets");
         String dbUser = c.v.text("cloudsql.user", "dvara");
-        for (String comp : List.of("gatewayServer", "flightdeck")) {
+        for (String comp : List.of("flightdeck")) {
             setValues.put(comp + ".extraEnv[0].name", "SPRING_DATASOURCE_URL");
             setValues.put(comp + ".extraEnv[0].value", jdbc);
             setValues.put(comp + ".extraEnv[1].name", "SPRING_DATASOURCE_USERNAME");
@@ -336,8 +335,10 @@ public class DvaraGke {
         m.put("enterprise-license-key", requireEnv("DVARA_LICENSE_KEY"));
         m.put("audit-hmac-secret", requireEnv("DVARA_AUDIT_HMAC_SECRET"));
         m.put("gateway-encryption-master-password", requireEnv("DVARA_ENCRYPTION_MASTER_PASSWORD"));
-        m.put("gateway-server-api-key", requireEnv("DVARA_ACTUATOR_API_KEY"));
+        m.put("llm-gateway-server-api-key", requireEnv("DVARA_ACTUATOR_API_KEY"));
         m.put("gateway-metrics-api-key", requireEnv("DVARA_ACTUATOR_METRICS_API_KEY"));
+        // The gateway enrols with Flightdeck using this (1.8.2); at least 32 characters.
+        m.put("enrolment-shared-secret", requireEnv("DVARA_ENROLMENT_SECRET"));
         opt("OPENAI_API_KEY").ifPresent(v -> m.put("openai-api-key", v));
         opt("ANTHROPIC_API_KEY").ifPresent(v -> m.put("anthropic-api-key", v));
         return m;

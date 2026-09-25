@@ -50,7 +50,6 @@ The bootstrap shape **prints any auto-generated keys to stdout at startup** (loo
 ## Related
 
 - **[../docker-compose/](../docker-compose/)** — base Compose stacks that consume these `gateway.yaml` files.
-- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. The chart's `gatewayServer.gatewayConfig:` field accepts the same shape inline.
-- **[../digitalocean/](../digitalocean/)** — DO App Platform deploys.
+- **[../kubernetes/](../kubernetes/)** — Helm chart reference values. The chart's `llmGatewayServer.gatewayConfig:` field accepts the same shape inline.
 - **[../datadog/](../datadog/)** + **[../grafana/](../grafana/)** — observability stacks.
 - **DVARA configuration reference** — see the [Configuration docs](https://dvarahq.com/docs/deployment/configuration) for every `dvara.*` property.

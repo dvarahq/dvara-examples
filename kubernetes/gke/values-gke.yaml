@@ -5,8 +5,8 @@
 # kubernetes/single-tenant/values.yaml only in three GCP-native bindings:
 #
 #   1. Workload Identity  — per-component ServiceAccount annotated with the
-#      GCP service account, so pods authenticate to Cloud SQL (IAM DB auth)
-#      and Secret Manager WITHOUT a static key. SA names are PINNED below so
+#      GCP service account, so pods authenticate to Secret Manager (and
+#      Flightdeck to Cloud SQL) WITHOUT a static key. SA names are PINNED below so
 #      the WI IAM binding member (`PROJECT.svc.id.goog[dvara/<ksa>]`) is
 #      deterministic — deploy.sh binds these exact names.
 #   2. GCE Ingress        — className `gce` + a Google global static IP +
@@ -14,7 +14,8 @@
 #      explicit `hosts` and leave `tls: []` so the chart renders NO spec.tls
 #      block — GCE managed certs are driven by the annotation + the
 #      ManagedCertificate CRD in managed-certificate.yaml.
-#   3. Cloud SQL DSN      — injected via extraEnv. The JDBC URL points at the
+#   3. Cloud SQL DSN      — injected into Flightdeck via extraEnv; the gateway
+#      has no database (1.8.2). The JDBC URL points at the
 #      Cloud SQL PRIVATE IP (VPC-native cluster + private services access);
 #      the password comes from the k8s Secret via secretKeyRef, never inline.
 #
@@ -26,14 +27,13 @@ global:
   imageRegistry: ""
   imagePullSecrets: []
 
-gatewayServer:
-  enabled: true
+llmGatewayServer:
   replicaCount: 2          # GCE Ingress + zero-downtime rolling updates
 
   image:
     repository: ghcr.io/dvarahq/dvara-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.8.1). Never :latest.
+    # published GA tag (e.g. 1.8.2). Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 
@@ -50,19 +50,12 @@ gatewayServer:
 
   javaOpts: "-Xms256m -Xmx768m"
 
-  # Cloud SQL connection. URL host is the PRIVATE IP (deploy.sh substitutes
-  # @@CLOUDSQL_PRIVATE_IP@@). Password via secretKeyRef — keep it out of
-  # plaintext values + shell history.
-  extraEnv:
-    - name: SPRING_DATASOURCE_URL
-      value: "jdbc:postgresql://@@CLOUDSQL_PRIVATE_IP@@:5432/dvara?sslmode=require"
-    - name: SPRING_DATASOURCE_USERNAME
-      value: "dvara"
-    - name: SPRING_DATASOURCE_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: dvara-db
-          key: password
+  # A volume per pod for the spool, the config snapshot and the enrolled
+  # certificate. Switches the gateway from a Deployment to a StatefulSet.
+  # The gateway has no database (1.8.2): only Flightdeck connects to it.
+  persistence:
+    enabled: true
+    size: 10Gi
 
   # GCE L7 LB health checks hit the readiness path; keep the chart defaults.
   pdb:
@@ -70,7 +63,6 @@ gatewayServer:
     minAvailable: 1
 
 flightdeck:
-  enabled: true
   replicaCount: 1
   image:
     repository: ghcr.io/dvarahq/dvara-flightdeck
@@ -95,13 +87,9 @@ flightdeck:
           name: dvara-db
           key: password
 
-# MCP proxy off by default — flip on (and add a third WI-bound SA) when you
-# route through MCP tools. Metered separately under the usage-unit model.
-mcpProxyServer:
-  enabled: false
 
 # DVARA platform secrets (license / encryption password / two actuator
-# Bearers / audit HMAC). deploy.sh creates this Secret — either directly
+# Bearers / audit HMAC / gateway enrolment secret). deploy.sh creates this Secret — either directly
 # from generated values (SECRET_MODE=k8s) or as a Secret Manager → k8s
 # projection via the CSI SecretProviderClass (SECRET_MODE=secret-manager,
 # the Workload-Identity-for-secrets path). Either way the chart consumes it
@@ -121,7 +109,7 @@ ingress:
     kubernetes.io/ingress.global-static-ip-name: "@@STATIC_IP_NAME@@"
     networking.gke.io/managed-certificates: "dvara-cert"
     kubernetes.io/ingress.allow-http: "false"
-  gatewayServer:
+  llmGatewayServer:
     hosts:
       - host: "@@API_HOST@@"          # e.g. api.dvara.example.com
         paths:

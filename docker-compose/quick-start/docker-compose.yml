@@ -2,16 +2,15 @@
 # The fastest path to a running gateway. OpenAI is the only provider.
 # For more providers (Anthropic, Gemini, etc.) see ../multi-provider.
 #
-# A LICENCE ADDS PLANES, NOT CONTAINERS. Leave DVARA_LICENSE_KEY blank and this
-# stack still runs policies, PII, guardrails, audit, budgets and cost
-# attribution — the /mcp and /a2a paths are simply not registered, and a request
-# there answers 404. Set a DVARA- envelope in .env and the SAME three services
-# additionally serve MCP tool governance and A2A hop governance on :8080.
+# NO LICENCE NEEDED TO TRY IT. Leave DVARA_LICENSE_KEY blank and every feature
+# runs, including the MCP and A2A planes on :8080, limited to 3 workspaces and
+# 100,000 calls a month, for non-production use.
 #
-# This is why there is no separate `full/` stack any more. Before 1.7.0 those two
-# planes were their own containers (dvara-mcp-gateway :8070, dvara-a2a-gateway
-# :8075); both images are retired and the planes moved into the gateway process,
-# so `full/` had become this file plus a licence key.
+# THE GATEWAY HAS NO DATABASE (1.8.2). Flightdeck is the only service that
+# connects to PostgreSQL, so it starts first. The gateway enrols with it using
+# DVARA_ENROLMENT_SECRET, gets its configuration from it, and sends its audit
+# and usage records back through a spool on the `gateway-data` volume. A
+# change you save in Flightdeck reaches the gateway in about 10 seconds.
 #
 # Usage:
 #   cp .env.example .env   # fill in EVERY uncommented variable — see .env.example
@@ -21,9 +20,10 @@
 #
 # Profile note: this stack runs on the Spring "default" profile (no
 # SPRING_PROFILES_ACTIVE), which is on the dev-profile allow-list. That
-# means the gateway will WARN-but-boot if DVARA_AUDIT_HMAC_SECRET is
-# left as the .env.example placeholder string. Production-class profiles
-# refuse to start on the placeholder — so always mint a real value via
+# means that from DVARA 1.8.2 the gateway logs a warning and still starts
+# if DVARA_AUDIT_HMAC_SECRET is left as the .env.example placeholder or is
+# shorter than 32 characters (earlier versions said nothing). Production-class
+# profiles refuse to start on either, so always mint a real value via
 # `openssl rand -base64 32` before any non-evaluation deployment.
 
 services:
@@ -44,8 +44,51 @@ services:
       start_period: 10s
       retries: 5
 
+  dvara-flightdeck:
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.2
+    platform: linux/amd64
+    pull_policy: missing
+    ports:
+      - "8090:8090"
+    environment:
+      # Optional. Without a licence every feature runs, limited to 3
+      # workspaces and 100,000 calls a month, for non-production use. A
+      # value here is copied into Flightdeck's licence store once, when the
+      # store is empty; after that, set or renew it on the Licence page.
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY:-}
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
+      # Gateway enrolment: Flightdeck runs its own CA and serves the
+      # gateways on port 8443, inside this network only. The server names
+      # are the ones the gateway uses to reach it.
+      DVARA_INTERNAL_ENROLMENT_ENABLED: "true"
+      DVARA_INTERNAL_ENROLMENT_SERVER_NAMES: dvara-flightdeck,localhost
+      DVARA_INTERNAL_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
+      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
+      SPRING_DATASOURCE_USERNAME: dvara
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, not readiness: Flightdeck's readiness waits for the
+      # gateway, and the gateway waits for Flightdeck.
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.8.1
+    image: ghcr.io/dvarahq/dvara-gateway:1.8.2
     platform: linux/amd64
     # `missing` pulls once on first `compose up` and reuses the local image
     # on every subsequent run — friendlier on flaky networks / repeat
@@ -54,8 +97,25 @@ services:
     pull_policy: missing
     ports:
       - "8080:8080"
+    restart: unless-stopped
+    # Longer than the spool's 20 s shutdown drain, so `docker compose stop`
+    # lets the gateway send what it has spooled.
+    stop_grace_period: 45s
+    # The spool, the config snapshot and the enrolment files. A named
+    # volume keeps them across restarts, so a gateway restarting while
+    # Flightdeck is down still serves from its snapshot.
+    volumes:
+      - gateway-data:/var/lib/dvara
     environment:
-      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # No database and no licence key (1.8.2): the gateway enrols with
+      # Flightdeck on its internal port 8443 using the shared secret, then
+      # reads its configuration and licence from Flightdeck and sends its
+      # audit and usage records back through the spool below.
+      DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
+      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
+      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
+      DVARA_DATA_PLANE_CONTROL_PLANE_SNAPSHOT_PATH: /var/lib/dvara/bundle-snapshot.json
+      DVARA_LLM_GATEWAY_LOCAL_STORE_PATH: /var/lib/dvara/spool.db
       # rc24+ required secrets (per dvarahq/dvara#665). Without these the
       # actuator chain 401s every flightdeck License Console call,
       # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
@@ -65,15 +125,18 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      # Must match Flightdeck's value: the gateway mints PII tokens and
+      # Flightdeck reads and purges them.
+      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
-      SPRING_DATASOURCE_USERNAME: dvara
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
     depends_on:
-      postgres:
+      # The gateway enrols with Flightdeck when it starts, so Flightdeck
+      # has to be up first. `restart` starts the gateway again if
+      # Flightdeck took longer than the gateway's one-minute wait.
+      dvara-flightdeck:
         condition: service_healthy
     healthcheck:
-      # Match the image's baked HEALTHCHECK and the flightdeck probe below.
+      # Match the image's baked HEALTHCHECK and the flightdeck probe above.
       # /liveness is a single-state check (no DB pool / cache sub-states)
       # so the docker UP/DOWN signal stays deterministic.
       test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/liveness"]
@@ -82,36 +145,7 @@ services:
       start_period: 30s
       retries: 3
 
-  dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.1
-    platform: linux/amd64
-    pull_policy: missing
-    ports:
-      - "8090:8090"
-    environment:
-      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
-      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
-      # actuator chain 401s every flightdeck License Console call,
-      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
-      # provider credentials can't be persisted. Generate via
-      # `openssl rand -base64 32` and put values in .env (see .env.example).
-      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
-      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
-      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
-      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
-      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
-      SPRING_DATASOURCE_USERNAME: dvara
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
-    depends_on:
-      dvara-gateway:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
-      interval: 15s
-      timeout: 5s
-      start_period: 30s
-      retries: 3
 
 volumes:
   pgdata:
+  gateway-data:

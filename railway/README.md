@@ -46,7 +46,6 @@ curl -H "Authorization: Bearer $DVARA_ACTUATOR_API_KEY" \
 
 ## Related
 
-- **[`../digitalocean/`](../digitalocean/)** — DigitalOcean App Platform shapes (smoke + production with Managed PG addon)
 - **[`../render/`](../render/)** — Render Blueprint
 - **[`../flyio/`](../flyio/)** — Fly.io config
 - **[`../kubernetes/`](../kubernetes/)** — Helm chart reference values for full multi-service deploys

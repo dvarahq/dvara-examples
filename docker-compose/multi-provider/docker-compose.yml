@@ -6,6 +6,10 @@
 # in .env. See https://dvarahq.com/docs/core-concepts/providers for the
 # full list and per-provider setup.
 #
+# The gateway has no database (1.8.2): Flightdeck is the only service that
+# connects to PostgreSQL and starts first; the gateway enrols with it using
+# DVARA_ENROLMENT_SECRET. See ../quick-start for how the two connect.
+#
 # Usage:
 #   cp .env.example .env   # edit with whichever keys you have
 #   docker compose up -d
@@ -29,14 +33,18 @@ services:
       start_period: 10s
       retries: 5
 
-  dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.8.1
+  dvara-flightdeck:
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.2
     platform: linux/amd64
     pull_policy: always
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
-      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
+      # Optional. Without a licence every feature runs, limited to 3
+      # workspaces and 100,000 calls a month, for non-production use. A
+      # value here is copied into Flightdeck's licence store once, when the
+      # store is empty; after that, set or renew it on the Licence page.
+      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY:-}
       # rc24+ required secrets (per dvarahq/dvara#665). Without these the
       # actuator chain 401s every flightdeck License Console call,
       # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
@@ -46,9 +54,65 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
+      # Gateway enrolment: Flightdeck runs its own CA and serves the
+      # gateways on port 8443, inside this network only. The server names
+      # are the ones the gateway uses to reach it.
+      DVARA_INTERNAL_ENROLMENT_ENABLED: "true"
+      DVARA_INTERNAL_ENROLMENT_SERVER_NAMES: dvara-flightdeck,localhost
+      DVARA_INTERNAL_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
+      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
       SPRING_DATASOURCE_USERNAME: dvara
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Liveness, not readiness: Flightdeck's readiness waits for the
+      # gateway, and the gateway waits for Flightdeck.
+      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+  dvara-gateway:
+    image: ghcr.io/dvarahq/dvara-gateway:1.8.2
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # Longer than the spool's 20 s shutdown drain, so `docker compose stop`
+    # lets the gateway send what it has spooled.
+    stop_grace_period: 45s
+    # The spool, the config snapshot and the enrolment files. A named
+    # volume keeps them across restarts, so a gateway restarting while
+    # Flightdeck is down still serves from its snapshot.
+    volumes:
+      - gateway-data:/var/lib/dvara
+    environment:
+      # No database and no licence key (1.8.2): the gateway enrols with
+      # Flightdeck on its internal port 8443 using the shared secret, then
+      # reads its configuration and licence from Flightdeck and sends its
+      # audit and usage records back through the spool below.
+      DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
+      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
+      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
+      DVARA_DATA_PLANE_CONTROL_PLANE_SNAPSHOT_PATH: /var/lib/dvara/bundle-snapshot.json
+      DVARA_LLM_GATEWAY_LOCAL_STORE_PATH: /var/lib/dvara/spool.db
+      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
+      # actuator chain 401s every flightdeck License Console call,
+      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
+      # provider credentials can't be persisted. Generate via
+      # `openssl rand -base64 32` and put values in .env (see .env.example).
+      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
+      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
+      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      # Must match Flightdeck's value: the gateway mints PII tokens and
+      # Flightdeck reads and purges them.
+      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Add more providers here — uncomment and set in .env:
@@ -59,7 +123,10 @@ services:
       # AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
       # AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
     depends_on:
-      postgres:
+      # The gateway enrols with Flightdeck when it starts, so Flightdeck
+      # has to be up first. `restart` starts the gateway again if
+      # Flightdeck took longer than the gateway's one-minute wait.
+      dvara-flightdeck:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health"]
@@ -68,36 +135,7 @@ services:
       start_period: 30s
       retries: 3
 
-  dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.1
-    platform: linux/amd64
-    pull_policy: always
-    ports:
-      - "8090:8090"
-    environment:
-      DVARA_LICENSE_KEY: ${DVARA_LICENSE_KEY}
-      # rc24+ required secrets (per dvarahq/dvara#665). Without these the
-      # actuator chain 401s every flightdeck License Console call,
-      # /actuator/prometheus 401s every scrape, and ENCRYPTED-mode
-      # provider credentials can't be persisted. Generate via
-      # `openssl rand -base64 32` and put values in .env (see .env.example).
-      DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
-      DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
-      DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
-      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
-      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
-      SPRING_DATASOURCE_USERNAME: dvara
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
-    depends_on:
-      dvara-gateway:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
-      interval: 15s
-      timeout: 5s
-      start_period: 30s
-      retries: 3
 
 volumes:
   pgdata:
+  gateway-data:
