@@ -14,9 +14,10 @@ For the full reference — every property, every audit event payload, every Prom
 
 ```bash
 cp .env.example .env
-# Mint secrets (DVARA_ENCRYPTION_MASTER_PASSWORD, the two ACTUATOR keys,
-# DVARA_AUDIT_HMAC_SECRET) with: openssl rand -base64 32
-# Set DVARA_LICENSE_KEY + OPENAI_API_KEY.
+# Mint each secret on its own with: openssl rand -base64 32
+# (DVARA_ENROLMENT_SECRET, DVARA_ENCRYPTION_MASTER_PASSWORD, the two ACTUATOR
+# keys, DVARA_AUDIT_HMAC_SECRET, DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD).
+# Set OPENAI_API_KEY. DVARA_LICENSE_KEY is optional.
 
 docker compose up -d
 docker compose ps          # all 3 services should be healthy
