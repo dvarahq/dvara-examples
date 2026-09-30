@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.8.2](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.2)** — compatible with Dvara `1.8.2`.
+> **Latest release: [1.8.4](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.4)** — compatible with Dvara `1.8.4`.
 
 ## Contents
 
@@ -18,7 +18,8 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 git clone https://github.com/dvarahq/dvara-examples.git
 cd dvara-examples/docker-compose/quick-start
 cp .env.example .env
-# edit .env — set DVARA_ENROLMENT_SECRET, the other secrets, and OPENAI_API_KEY.
+# edit .env — set DVARA_ENROLMENT_SECRET and the other secrets (generate each one
+# with `openssl rand -base64 32`), and OPENAI_API_KEY.
 # DVARA_LICENSE_KEY can stay blank: every feature runs, limited to 3 workspaces
 # and 100,000 calls a month, for non-production use.
 docker compose up -d
@@ -41,7 +42,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
-| `1.8.2` | Dvara `1.8.2` |
+| `1.8.4` | Dvara `1.8.4` |
 | `1.8.1` | Dvara `1.8.1` |
 | `1.8.0` | Dvara `1.8.0` |
 | `1.7.0` | Dvara `1.7.0` |
@@ -52,14 +53,19 @@ Older examples releases are listed on the [releases page](https://github.com/dva
 
 ## Changelog
 
-### [1.8.2](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.2)
+### [1.8.4](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.4)
 
-- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.8.2` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.8.2`).
-- **The gateway has no database.** Flightdeck is the only service that connects to PostgreSQL, so it starts first. The gateway enrols with it using a shared secret, gets its configuration from it, and sends its audit and usage records back through a spool on a volume. A gateway given `SPRING_DATASOURCE_URL` refuses to start.
-- **Compose: set `DVARA_ENROLMENT_SECRET` (at least 32 characters) and `DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD` in `.env`.** Both services read the same values. The gateway keeps its files on a new `gateway-data` volume. `DVARA_LICENSE_KEY` is optional and set on Flightdeck only.
+This release also covers Dvara 1.8.2 and 1.8.3. There was no examples release for either, so their changes are listed here.
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.8.4` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.8.4`). No renamed image, no new service, no moved port.
+- **The gateway has no database (since 1.8.2).** Flightdeck is the only service that connects to PostgreSQL, so it starts first. The gateway enrols with it using a shared secret, gets its configuration from it, and sends its audit and usage records back through a spool on a volume. A gateway given `SPRING_DATASOURCE_URL` refuses to start.
+- **Compose: set `DVARA_ENROLMENT_SECRET` (at least 32 characters) in `.env`.** Both services read the same value. The gateway keeps its files on a new `gateway-data` volume. `DVARA_LICENSE_KEY` is optional and set on Flightdeck only.
 - **Kubernetes: the values files use the chart's real keys.** `gatewayServer:` is `llmGatewayServer:`, `mcpProxyServer:` is gone, and `secrets.gatewayServerApiKey` is `secrets.llmGatewayServerApiKey` (Secret key `llm-gateway-server-api-key`). The chart refuses the old names. Database settings are on `flightdeck.extraEnv` only. The chart generates the enrolment secret; with `secrets.existingSecret`, add the key `enrolment-shared-secret`. Gateways get a volume per pod (`llmGatewayServer.persistence.enabled`), which makes them a StatefulSet.
 - **Multi-region: one Flightdeck per region.** A gateway enrols with the Flightdeck in its own release, and Flightdeck publishes configuration for its own region only. The Flightdecks share one database.
+- **`DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD` is set on Flightdeck only.** Flightdeck seals each workspace's PII key with it; the gateway fetches the keys from Flightdeck and needs no copy, so the Compose stacks no longer pass it to the gateway. Keep the value: losing it makes every PII token unreadable.
+- **Generate every secret with `openssl rand -base64 32`.** Each `.env.example` now says so: one fresh value per secret, 32 bytes, never a placeholder. From 1.8.4 the A2A delegation guard derives its key from `DVARA_AUDIT_HMAC_SECRET` and refuses a placeholder or a secret under 32 bytes. These stacks run the default (dev) profile, so the gateway logs a WARN and runs the guard off; a production profile won't start.
 - **No licence needed to try it.** Without one every feature runs, including MCP and A2A, limited to 3 workspaces and 100,000 calls a month, for non-production use.
+- **Ollama stack: the `ollama` healthcheck works again.** The current `ollama/ollama` image has no `curl`, so the old check never passed and the stack never started. It now runs `ollama list`.
 - **The DigitalOcean App Platform recipes are removed.** On DigitalOcean, use [DOKS](kubernetes/doks/) or a Droplet running one of the [Compose stacks](docker-compose/).
 
 ### [1.8.1](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.1)

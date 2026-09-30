@@ -22,9 +22,10 @@
 # SPRING_PROFILES_ACTIVE), which is on the dev-profile allow-list. That
 # means that from DVARA 1.8.2 the gateway logs a warning and still starts
 # if DVARA_AUDIT_HMAC_SECRET is left as the .env.example placeholder or is
-# shorter than 32 characters (earlier versions said nothing). Production-class
-# profiles refuse to start on either, so always mint a real value via
-# `openssl rand -base64 32` before any non-evaluation deployment.
+# shorter than 32 characters (earlier versions said nothing). From 1.8.4 it
+# also logs a WARN and runs the A2A delegation guard off in that case.
+# Production-class profiles refuse to start on either, so always mint a real
+# value via `openssl rand -base64 32` before any non-evaluation deployment.
 
 services:
   postgres:
@@ -45,7 +46,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.2
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.4
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -65,6 +66,10 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      # Flightdeck only. It seals each workspace's PII key with this; the
+      # gateway fetches the keys and needs no copy. Without it, only
+      # pii.action=TOKENIZE is affected. Keep the value: losing it makes
+      # every PII token unreadable.
       DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
       # Gateway enrolment: Flightdeck runs its own CA and serves the
       # gateways on port 8443, inside this network only. The server names
@@ -88,7 +93,7 @@ services:
       start_period: 30s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.8.2
+    image: ghcr.io/dvarahq/dvara-gateway:1.8.4
     platform: linux/amd64
     # `missing` pulls once on first `compose up` and reuses the local image
     # on every subsequent run — friendlier on flaky networks / repeat
@@ -125,9 +130,8 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
-      # Must match Flightdeck's value: the gateway mints PII tokens and
-      # Flightdeck reads and purges them.
-      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
+      # No DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD here: the gateway
+      # fetches each workspace's PII key from Flightdeck, which holds it.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       # The gateway enrols with Flightdeck when it starts, so Flightdeck

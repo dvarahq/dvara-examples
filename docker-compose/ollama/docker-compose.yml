@@ -46,14 +46,15 @@ services:
     #           count: all
     #           capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/"]
+      # The ollama image has no curl; `ollama list` asks the running server.
+      test: ["CMD", "ollama", "list"]
       interval: 15s
       timeout: 5s
       start_period: 10s
       retries: 3
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.2
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.4
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -73,6 +74,10 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
+      # Flightdeck only. It seals each workspace's PII key with this; the
+      # gateway fetches the keys and needs no copy. Without it, only
+      # pii.action=TOKENIZE is affected. Keep the value: losing it makes
+      # every PII token unreadable.
       DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
       # Gateway enrolment: Flightdeck runs its own CA and serves the
       # gateways on port 8443, inside this network only. The server names
@@ -96,7 +101,7 @@ services:
       start_period: 30s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.8.2
+    image: ghcr.io/dvarahq/dvara-gateway:1.8.4
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -129,9 +134,8 @@ services:
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
       DVARA_ACTUATOR_METRICS_API_KEY: ${DVARA_ACTUATOR_METRICS_API_KEY}
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
-      # Must match Flightdeck's value: the gateway mints PII tokens and
-      # Flightdeck reads and purges them.
-      DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD: ${DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD}
+      # No DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD here: the gateway
+      # fetches each workspace's PII key from Flightdeck, which holds it.
       OLLAMA_ENABLED: "true"
       OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
