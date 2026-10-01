@@ -56,8 +56,8 @@ account and no `docker login`.
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara-gateway:1.8.4` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
-| `ghcr.io/dvarahq/dvara-flightdeck:1.8.4` | DVARA Console / admin dashboard (port `8090`) |
+| `ghcr.io/dvarahq/dvara-gateway:1.8.5` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
+| `ghcr.io/dvarahq/dvara-flightdeck:1.8.5` | DVARA Console / admin dashboard (port `8090`) |
 
 Every stack here uses those two. **There is one artifact per application**, and every feature
 runs in it, including the MCP and A2A planes:
@@ -86,7 +86,7 @@ The published images today are **`linux/amd64` only** — every Dvara service in
 
 Native ARM builds are a planned follow-up. Once they land you can remove the `platform:` lines or leave them in place — the explicit pin still works against multi-arch manifests, it just stops being load-bearing.
 
-Tags: `latest` (current release) or a version tag (e.g. `1.8.4`).
+Tags: `latest` (current release) or a version tag (e.g. `1.8.5`).
 
 ## Documentation
 

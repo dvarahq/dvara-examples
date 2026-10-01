@@ -49,7 +49,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.4
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.8.5
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -131,7 +131,7 @@ services:
       start_period: 30s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.8.4
+    image: ghcr.io/dvarahq/dvara-gateway:1.8.5
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -155,6 +155,11 @@ services:
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
       DVARA_DATA_PLANE_CONTROL_PLANE_SNAPSHOT_PATH: /var/lib/dvara/bundle-snapshot.json
       DVARA_LLM_GATEWAY_LOCAL_STORE_PATH: /var/lib/dvara/spool.db
+      # A2A push notifications go through the gateway (1.8.5): a peer is given
+      # a callback URL built from this base. The default is reachable from a
+      # peer on this Compose network; set A2A_PUSH_CALLBACK_BASE_URL in .env
+      # to the gateway's public URL for a peer anywhere else.
+      A2A_PUSH_CALLBACK_BASE_URL: ${A2A_PUSH_CALLBACK_BASE_URL:-http://dvara-gateway:8080}
       # rc24+ required secrets — same as quick-start.
       DVARA_ENCRYPTION_MASTER_PASSWORD: ${DVARA_ENCRYPTION_MASTER_PASSWORD}
       DVARA_ACTUATOR_API_KEY: ${DVARA_ACTUATOR_API_KEY}
