@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.8.4](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.4)** — compatible with Dvara `1.8.4`.
+> **Latest release: [1.8.5](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.5)** — compatible with Dvara `1.8.5`.
 
 ## Contents
 
@@ -42,6 +42,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.8.5` | Dvara `1.8.5` |
 | `1.8.4` | Dvara `1.8.4` |
 | `1.8.1` | Dvara `1.8.1` |
 | `1.8.0` | Dvara `1.8.0` |
@@ -52,6 +53,14 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.8.5](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.5)
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.8.5` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.8.5`). No renamed image, no new service, no moved port.
+- **A2A push goes through the gateway.** From 1.8.5 a peer posts a task's push notification to the gateway, which scans and audits it and then delivers it to the workspace's webhook. The gateway needs `A2A_PUSH_CALLBACK_BASE_URL` for that. Each Compose stack now sets it to `http://dvara-gateway:8080`, which a peer on the same Compose network reaches; set it in `.env` to the gateway's public URL for any other peer. On Kubernetes, set the chart value `llmGatewayServer.a2a.pushCallbackBaseUrl`. Without it, a push config is refused with `503 A2A_PUSH_NOT_AVAILABLE`.
+- **A2A peers must be `https://`.** An agent saved with an `http://` endpoint stays, but Flightdeck flags it and hops to it fail until it is moved to `https://`.
+- **Claude Code can run through the gateway** at `/v1/messages`: set `ANTHROPIC_BASE_URL` to the gateway and `ANTHROPIC_API_KEY` to a DVARA workspace key.
+- **Known issue:** the context check uses one limit per provider (OpenAI 128,000 tokens, Anthropic 200,000), so very large gpt-4.1 or Claude Sonnet/Opus 5.5 requests can be refused or trimmed below the model's real window. Fixed in 1.8.6.
 
 ### [1.8.4](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.4)
 

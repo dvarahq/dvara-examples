@@ -192,7 +192,7 @@ public class DvaraGke {
         // The chart carries per-component image tags (no global tag); apply the one
         // configured tag to both runnable components. Default to the published GA.
         var setValues = new LinkedHashMap<String, String>();
-        String tag = c.v.text("image.tag", "1.8.4");
+        String tag = c.v.text("image.tag", "1.8.5");
         setValues.put("llmGatewayServer.image.tag", tag);
         setValues.put("flightdeck.image.tag", tag);
 

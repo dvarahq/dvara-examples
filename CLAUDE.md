@@ -45,7 +45,7 @@ Smoke checks after `up`:
 - **Service dependency chain is fixed**: postgres (healthy) → dvara-flightdeck (healthy) → dvara-gateway. Flightdeck's healthcheck uses **liveness**, not readiness: its readiness waits for the gateway, which waits for Flightdeck. Preserve these `depends_on` + `condition: service_healthy` blocks when editing.
 - **Provider keys belong only on `dvara-gateway`.** The Flightdeck admin console does not need them. When adding a provider to `multi-provider/`, add the env var there only.
 - **Fixed host ports**: 5432 (postgres), 8080 (gateway — LLM, and the /mcp and /a2a paths), 8090 (admin console). 8070 and 8075 are RETIRED: those services no longer exist. These are referenced in the READMEs and smoke-test commands — keep them aligned if you change one.
-- **Images are pinned to an explicit version tag (`:1.8.4`)** in every stack — not `:latest` — so a copied stack is reproducible. Bump the pin in each `docker-compose.yml` when a new release ships.
+- **Images are pinned to an explicit version tag (`:1.8.5`)** in every stack — not `:latest` — so a copied stack is reproducible. Bump the pin in each `docker-compose.yml` when a new release ships.
 
 ## When adding a new variant
 
