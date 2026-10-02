@@ -1,0 +1,15 @@
+# Read once by Flightdeck on first boot (DVARA_BOOTSTRAP_FILE). Seeds the quickstart
+# workspace and an API key whose value start.sh generates into .env as DEMO_API_KEY.
+# The MCP server, the policies and the PII setting are not bootstrap fields; start.sh
+# loads them through Flightdeck's config import.
+workspaces:
+  - id: quickstart
+    name: MCP Quickstart
+    status: ACTIVE
+    region: local
+
+api_keys:
+  - workspace: quickstart
+    name: quickstart-key
+    key: ${DEMO_API_KEY}
+    # No scopes: the key is unrestricted, so it can call /mcp and /v1.

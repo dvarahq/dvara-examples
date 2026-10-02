@@ -8,7 +8,7 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 
 | Directory | Description |
 |---|---|
-| **[docker-compose/](docker-compose/)** | Ready-to-run Docker Compose stacks (quick-start, multi-provider, ollama, with-email) |
+| **[docker-compose/](docker-compose/)** | Ready-to-run Docker Compose stacks (quick-start, **mcp-quickstart**, multi-provider, ollama, with-email) |
 | **[getting-started/](getting-started/)** | First-request scripts in Python and Node.js — basic chat, streaming, structured outputs, multi-provider |
 | **[sdk-integrations/](sdk-integrations/)** | Framework examples — OpenAI SDK, LangChain, LiteLLM, Pydantic AI, Vercel AI, Spring AI, LangChain4j |
 

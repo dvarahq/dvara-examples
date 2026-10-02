@@ -14,6 +14,7 @@ its configuration from it, and sends its audit and usage records back through a 
 | Directory | Services | When to use |
 |---|---|---|
 | [`quick-start/`](quick-start) | postgres + dvara-flightdeck + dvara-gateway | Fastest path to a running gateway. OpenAI only. |
+| [`mcp-quickstart/`](mcp-quickstart) | postgres + dvara-flightdeck + dvara-gateway + a JBang MCP server | Governed MCP tool calls in one command: allowed, PII-redacted and policy-denied. No licence or provider key. |
 | [`multi-provider/`](multi-provider) | postgres + dvara-flightdeck + dvara-gateway | OpenAI + Anthropic out of the box. More providers (Gemini, Mistral, Cohere, Groq, Azure, Bedrock, Ollama) can be added by uncommenting env vars. |
 | [`ollama/`](ollama) | postgres + dvara-flightdeck + dvara-gateway + ollama | Local models, no external LLM calls. |
 | [`with-email/`](with-email) | postgres + dvara-flightdeck + dvara-gateway | Same shape as `quick-start/` with transactional email (`log` / `resend` / `smtp`) + the delivery durability layer (retry / DLQ / idempotency) surfaced for tuning and inspection. |
