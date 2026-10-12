@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.8.5](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.5)** — compatible with Dvara `1.8.5`.
+> **Latest release: [1.9.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.9.0)** — compatible with Dvara `1.9.0`.
 
 ## Contents
 
@@ -42,6 +42,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.9.0` | Dvara `1.9.0` |
 | `1.8.5` | Dvara `1.8.5` |
 | `1.8.4` | Dvara `1.8.4` |
 | `1.8.1` | Dvara `1.8.1` |
@@ -53,6 +54,14 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.9.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.9.0)
+
+This release also covers Dvara 1.8.6. There was no examples release for it, so its changes are listed here.
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.9.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.9.0`). No renamed image, no new service, no moved port.
+- **mcp-quickstart works again.** Since 1.8.6 `/setup` needs `confirmPassword`, and an imported policy is saved as a draft that a second person must approve. `start.sh` now sends `confirmPassword`, invites a policy admin (`approver@quickstart.local`, password in `.env`) and has it approve the deny policy, so `delete_customer` is refused as before. An `.env` from an earlier run gets the approver added.
+- **A2A refusals are answered with HTTP 200** and a JSON-RPC error, so an A2A SDK client can read them. None of these examples calls `/a2a`.
 
 ### [1.8.5](https://github.com/dvarahq/dvara-examples/releases/tag/1.8.5)
 
