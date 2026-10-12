@@ -44,20 +44,24 @@ so the first start takes longer.
 
 ## What `start.sh` does
 
-1. **Writes `.env`** with a fresh secret for each of the six the stack needs, an API key and an
-   owner password. It runs only when `.env` doesn't exist yet.
+1. **Writes `.env`** with a fresh secret for each of the six the stack needs, an API key, an
+   owner password and a password for a second user. It runs only when `.env` doesn't exist yet.
 2. **Starts the demo MCP server** (`DemoMcpServer.java`), a Spring AI MCP server on
    `http://localhost:8060/mcp` that speaks Streamable HTTP. It has three tools:
    `get_order_status`, `lookup_customer` (its result carries PII) and `delete_customer`
    (irreversible).
-3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.8.5).
+3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.9.0).
    Flightdeck reads `bootstrap.yaml` on first boot and creates the `quickstart` workspace and its
    API key.
 4. **Creates the Flightdeck owner, signs in and imports `seed-config.json`**, which contains:
    - the MCP server registration, pointing at the demo server on the host
    - a policy that denies `delete_customer`
    - `pii.action: REDACT` on the workspace
-5. **Syncs the server's tool catalog** and waits until the gateway lists the tools.
+5. **Activates the policy with a second person's approval.** An import saves a policy as a
+   draft, and Flightdeck makes a policy live only when someone other than the requester approves
+   it. `start.sh` invites a policy admin (`approver@quickstart.local`), requests the activation as
+   the owner and approves it as the policy admin.
+6. **Syncs the server's tool catalog** and waits until the gateway lists the tools.
 
 Run it again at any time. It skips what already exists and re-applies the configuration.
 

@@ -45,8 +45,13 @@ DEMO_API_KEY=gw_$(openssl rand -hex 24)
 # The Flightdeck owner start.sh creates. Sign in at $FLIGHTDECK with these.
 OWNER_EMAIL=owner@quickstart.local
 OWNER_PASSWORD=$(openssl rand -hex 12)
+# A second Flightdeck user. A policy goes live only when someone other than its author approves it.
+APPROVER_EMAIL=approver@quickstart.local
+APPROVER_PASSWORD=$(openssl rand -hex 12)
 EOF
 fi
+# An .env written by an earlier version of this script has no approver yet.
+grep -q '^APPROVER_EMAIL=' .env || printf 'APPROVER_EMAIL=approver@quickstart.local\nAPPROVER_PASSWORD=%s\n' "$(openssl rand -hex 12)" >> .env
 set -a; source .env; set +a
 
 # --- 2. The demo MCP server -------------------------------------------------------------
@@ -91,7 +96,8 @@ if [[ $(fd -o /dev/null -w '%{http_code}' "$FLIGHTDECK/setup") == 200 ]]; then
   token=$(fd "$FLIGHTDECK/setup" | csrf)
   fd -o /dev/null "$FLIGHTDECK/setup" --data-urlencode "_csrf=$token" \
     --data-urlencode first_name=Quickstart --data-urlencode last_name=Owner \
-    --data-urlencode "email=$OWNER_EMAIL" --data-urlencode "password=$OWNER_PASSWORD"
+    --data-urlencode "email=$OWNER_EMAIL" --data-urlencode "password=$OWNER_PASSWORD" \
+    --data-urlencode "confirmPassword=$OWNER_PASSWORD"
 fi
 
 token=$(fd "$FLIGHTDECK/login" | csrf)
@@ -108,6 +114,47 @@ hash=$(grep -oE 'name="contentHash"[^>]*value="[^"]+"|value="[^"]+"[^>]*name="co
 [[ -n $hash ]] || fail "Flightdeck rejected seed-config.json; open $STATE/preview.html to see why."
 token=$(csrf < "$STATE/preview.html")
 fd -o /dev/null "$FLIGHTDECK/config/import/apply" --data-urlencode "_csrf=$token" --data-urlencode "contentHash=$hash"
+
+# An import saves a policy as DRAFT, and a second person must approve its activation.
+# start.sh makes that second person: a policy admin, whose invitation token it reads from
+# the database (the stack sends no email).
+POLICY_ID=no-destructive-tools
+sql() { docker compose exec -T postgres psql -U dvara -d dvara -tAc "$1"; }
+if [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") != ACTIVE ]]; then
+  say "Activating the deny policy, approved by a second Flightdeck user ($APPROVER_EMAIL)"
+  if [[ -z $(sql "select id from dvara_main.users where lower(email)=lower('$APPROVER_EMAIL')") ]]; then
+    token=$(fd "$FLIGHTDECK/users/new" | csrf)
+    fd -o /dev/null "$FLIGHTDECK/users" --data-urlencode "_csrf=$token" \
+      --data-urlencode first_name=Policy --data-urlencode last_name=Approver \
+      --data-urlencode "email=$APPROVER_EMAIL" --data-urlencode roles=policy-admin
+    invite=$(sql "select verification_token from dvara_main.users where lower(email)=lower('$APPROVER_EMAIL')")
+    [[ -n $invite ]] || fail "Could not invite $APPROVER_EMAIL."
+    REG="$STATE/cookies-register"; rm -f "$REG"
+    token=$(curl -s -b "$REG" -c "$REG" "$FLIGHTDECK/register?token=$invite" | csrf)
+    curl -s -b "$REG" -c "$REG" -o /dev/null "$FLIGHTDECK/register" --data-urlencode "_csrf=$token" \
+      --data-urlencode "token=$invite" --data-urlencode first_name=Policy --data-urlencode last_name=Approver \
+      --data-urlencode "password=$APPROVER_PASSWORD" --data-urlencode "confirmPassword=$APPROVER_PASSWORD"
+  fi
+
+  version=$(sql "select version from dvara_main.policies where id='$POLICY_ID'")
+  token=$(fd "$FLIGHTDECK/policies/$POLICY_ID/edit" | csrf)
+  fd -o /dev/null "$FLIGHTDECK/policies/$POLICY_ID/activation-requests" --data-urlencode "_csrf=$token" \
+    --data-urlencode "expectedVersion=$version" --data-urlencode "reason=MCP quickstart"
+  request=$(sql "select id from dvara_main.policy_activation_requests
+                 where policy_id='$POLICY_ID' and status='PENDING' order by requested_at desc limit 1")
+  [[ -n $request ]] || fail "Flightdeck did not record the activation request for $POLICY_ID."
+
+  APP="$STATE/cookies-approver"; rm -f "$APP"
+  token=$(curl -s -b "$APP" -c "$APP" "$FLIGHTDECK/login" | csrf)
+  curl -s -b "$APP" -c "$APP" -o /dev/null "$FLIGHTDECK/login" --data-urlencode "_csrf=$token" \
+    --data-urlencode "email=$APPROVER_EMAIL" --data-urlencode "password=$APPROVER_PASSWORD"
+  rversion=$(sql "select version from dvara_main.policy_activation_requests where id='$request'")
+  token=$(curl -s -b "$APP" -c "$APP" "$FLIGHTDECK/policies/$POLICY_ID/edit" | csrf)
+  curl -s -b "$APP" -c "$APP" -o /dev/null "$FLIGHTDECK/policies/$POLICY_ID/activation-requests/$request/approve" \
+    --data-urlencode "_csrf=$token" --data-urlencode "requestVersion=$rversion" --data-urlencode "reason=MCP quickstart"
+  [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") == ACTIVE ]] \
+    || fail "The deny policy is not active. Sign in as $APPROVER_EMAIL and approve it under Policies."
+fi
 
 say "Reading the demo server's tools into the catalog"
 token=$(fd "$FLIGHTDECK/mcp/servers" | csrf)
