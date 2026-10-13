@@ -4,6 +4,8 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 
 > **Latest release: [1.9.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.9.0)** — compatible with Dvara `1.9.0`.
 
+The gateway itself is open source under Apache 2.0: **[dvarahq/dvara](https://github.com/dvarahq/dvara)**. To run it on its own, follow the [open-source quickstart](https://dvarahq.com/docs/open-source-quickstart).
+
 ## Contents
 
 | Directory | Description |
