@@ -124,7 +124,7 @@
         "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
         "targets": [
           {
-            "expr": "gateway_hazelcast_cluster_members",
+            "expr": "gateway_cluster_members",
             "legendFormat": "{{instance}}"
           }
         ],

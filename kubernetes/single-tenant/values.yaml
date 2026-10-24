@@ -32,7 +32,7 @@
 #
 #   # 3. Install (chart published at oci://ghcr.io/dvarahq/charts/dvara):
 #   helm install dvara oci://ghcr.io/dvarahq/charts/dvara \
-#     --version 1.9.0 \
+#     --version 1.12.0 \
 #     --namespace dvara \
 #     --values ./values.yaml \
 #     --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \

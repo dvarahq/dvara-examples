@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.9.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.9.0)** — compatible with Dvara `1.9.0`.
+> **Latest release: [1.12.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.12.0)** — compatible with Dvara `1.12.0`.
 
 ## Contents
 
@@ -42,6 +42,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.12.0` | Dvara `1.12.0` |
 | `1.9.0` | Dvara `1.9.0` |
 | `1.8.5` | Dvara `1.8.5` |
 | `1.8.4` | Dvara `1.8.4` |
@@ -54,6 +55,15 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.12.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.12.0)
+
+This release also covers Dvara 1.10.0 and 1.11.0. There were no examples releases for them.
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.12.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.12.0`). No renamed image, no new service, no moved port. Each Kubernetes values file renders with the 1.12.0 chart.
+- **Grafana:** the cache cluster panel reads `gateway_cluster_members`. The old `gateway_hazelcast_cluster_members` metric went away when the cluster moved to Infinispan in 1.10.0.
+- **Anthropic:** the gateway now calls Anthropic on API version `2026-10-21`. A request it translates for Anthropic, for example one sent to `/v1/chat/completions`, no longer passes on `temperature` or `top_p`; the `X-Gateway-Params-Not-Applied` response header names them. Set `ANTHROPIC_API_VERSION=2023-06-01` on the gateway to keep the old behaviour.
+- **Cost Advisor:** Flightdeck's **Cost → Cost Advisor** lists ways to spend less, priced from your last 30 days of calls.
 
 ### [1.9.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.9.0)
 

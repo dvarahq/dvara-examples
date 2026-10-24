@@ -50,7 +50,7 @@ so the first start takes longer.
    `http://localhost:8060/mcp` that speaks Streamable HTTP. It has three tools:
    `get_order_status`, `lookup_customer` (its result carries PII) and `delete_customer`
    (irreversible).
-3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.9.0).
+3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.12.0).
    Flightdeck reads `bootstrap.yaml` on first boot and creates the `quickstart` workspace and its
    API key.
 4. **Creates the Flightdeck owner, signs in and imports `seed-config.json`**, which contains:
