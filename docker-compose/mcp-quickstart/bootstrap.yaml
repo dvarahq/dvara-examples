@@ -6,7 +6,7 @@ workspaces:
   - id: quickstart
     name: MCP Quickstart
     status: ACTIVE
-    region: local
+    region: default
 
 api_keys:
   - workspace: quickstart
