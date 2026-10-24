@@ -6,7 +6,7 @@
       "name": "MCP Quickstart",
       "teamId": "default-team",
       "status": "ACTIVE",
-      "region": "local",
+      "region": "default",
       "metadata": { "pii.action": "REDACT" }
     }
   ],
