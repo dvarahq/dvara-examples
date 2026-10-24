@@ -76,7 +76,8 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:8090/actuator/health/liveness"]
       interval: 15s
       timeout: 5s
-      start_period: 30s
+      # Up to two minutes for the first start: on Apple Silicon the amd64 image runs emulated.
+      start_period: 120s
       retries: 3
   dvara-gateway:
     image: ghcr.io/dvarahq/dvara-gateway:1.12.0
@@ -143,7 +144,8 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/actuator/health/liveness"]
       interval: 15s
       timeout: 5s
-      start_period: 30s
+      # Up to two minutes for the first start: on Apple Silicon the amd64 image runs emulated.
+      start_period: 120s
       retries: 3
 
 
