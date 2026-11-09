@@ -48,6 +48,8 @@ jbang LangChain4jExample.java
 ### Spring AI
 Copy `SpringAiExample.java` and `application.yml` into your Spring Boot project.
 
+For a complete project you can build and run against the open-source gateway, see [spring-ai-getting-started](../spring-ai-getting-started/).
+
 ## Full Documentation
 
 See [SDK & Framework Integrations](https://dvarahq.com/docs/sdk-integrations) for comprehensive documentation covering all supported SDKs.

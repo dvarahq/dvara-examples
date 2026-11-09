@@ -1,0 +1,35 @@
+# Spring AI getting started — the open-source DVARA LLM Gateway on one port.
+#
+# Runs ghcr.io/dvarahq/dvara-gateway-oss with gateway.yaml from this folder and
+# the bundled Mock provider, so the Spring AI app in this folder can make a
+# governed call without a provider account. No database, no console.
+#
+# Usage:
+#   cp .env.example .env      # then fill in the three values, see README.md
+#   docker compose up -d
+#   curl http://localhost:8080/actuator/health
+#
+# Audit records go to /tmp/audit.log inside the container:
+#   docker compose exec dvara-gateway cat /tmp/audit.log
+
+services:
+  dvara-gateway:
+    image: ghcr.io/dvarahq/dvara-gateway-oss:1.13.0
+    ports:
+      - "${DVARA_PORT:-8080}:8080"
+    volumes:
+      - ./gateway.yaml:/app/gateway.yaml:ro
+    environment:
+      DVARA_KEY_HASH: ${DVARA_KEY_HASH:?set DVARA_KEY_HASH in .env}
+      DVARA_AUDIT_FILE_PATH: /tmp/audit.log
+      DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET:?set DVARA_AUDIT_HMAC_SECRET in .env}
+      # Demo only: the Mock provider answers with the text it received, so you
+      # can see what reached the "model" after DVARA's checks. Never enable the
+      # Mock provider in production.
+      DVARA_LLM_GATEWAY_PROVIDERS_MOCK_RESPONSE: "groovy: 'The model received: ' + request.messages.last().textContent()"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 20s

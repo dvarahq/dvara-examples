@@ -1,0 +1,25 @@
+spring:
+  main:
+    web-application-type: none   # a command-line app: send one prompt, print, exit
+    banner-mode: off
+  ai:
+    openai:
+      # The DVARA LLM Gateway's OpenAI-compatible endpoint. Include /v1:
+      # Spring AI 2.0 appends /chat/completions to this URL.
+      base-url: ${DVARA_BASE_URL:http://localhost:8080/v1}
+      # A DVARA key (gw_...), not an OpenAI key. The gateway holds provider keys.
+      api-key: ${DVARA_API_KEY}
+      # Spring AI retries a failed call 3 times by default. Keep retries in one
+      # place: DVARA already retries and fails over between providers.
+      max-retries: 0
+      chat:
+        # Must match a route in gateway.yaml. "mock*" routes to the Mock provider.
+        model: mock/test-model
+        temperature: 0.2
+
+app:
+  prompt: "Email jane.doe@example.com the renewal quote for policy 4471."
+
+logging:
+  level:
+    root: WARN

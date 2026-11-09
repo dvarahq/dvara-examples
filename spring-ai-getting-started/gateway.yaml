@@ -1,0 +1,38 @@
+# gateway.yaml for the open-source DVARA LLM Gateway, used by docker-compose.yml.
+#
+# One workspace, one key, the bundled Mock provider (no provider account
+# needed) and one policy. ${VAR} values are read from the environment, so the
+# key fingerprint comes from .env and nothing secret is written here.
+
+providers:
+  - type: mock          # answers like an OpenAI model, never leaves the machine
+
+workspaces:
+  - id: default
+    metadata:
+      pii.action: REDACT        # the default is LOG: detect and record, change nothing
+      guardrail.action: BLOCK   # refuse a request that a guardrail flags
+
+routes:
+  - id: local-mock
+    model: "mock*"              # every model name that starts with "mock"
+    provider: mock
+
+api_keys:
+  - key_hash: ${DVARA_KEY_HASH} # sha256:... printed by --generate-key; the key itself stays in .env
+    name: spring-ai-demo
+    workspace: default
+
+policies:
+  - id: approved-models-only
+    workspace: default
+    status: ACTIVE
+    dsl: |
+      version: "1"
+      rules:
+        - id: deny-unapproved
+          conditions:
+            model:
+              denylist: [mock/unapproved]
+          action: DENY
+          deny_message: "mock/unapproved is not an approved model"

@@ -10,6 +10,7 @@ Reference configurations, compose files, and SDK integration samples for the [Dv
 |---|---|
 | **[docker-compose/](docker-compose/)** | Ready-to-run Docker Compose stacks (quick-start, **mcp-quickstart**, multi-provider, ollama, with-email) |
 | **[getting-started/](getting-started/)** | First-request scripts in Python and Node.js — basic chat, streaming, structured outputs, multi-provider |
+| **[spring-ai-getting-started/](spring-ai-getting-started/)** | A runnable Spring Boot + Spring AI app calling the open-source gateway: PII redaction, a policy refusal and the signed audit record, no provider account needed |
 | **[sdk-integrations/](sdk-integrations/)** | Framework examples — OpenAI SDK, LangChain, LiteLLM, Pydantic AI, Vercel AI, Spring AI, LangChain4j |
 
 ## Quick start
