@@ -28,12 +28,20 @@ global:
   imagePullSecrets: []
 
 llmGatewayServer:
+  # The gateway pods talk to each other over TLS on the cluster port. This
+  # install brings its own Secret (secrets.existingSecret), so since 1.14.0
+  # the chart makes the cluster certificate only when asked. It keeps the
+  # certificate across `helm upgrade`.
+  cluster:
+    tls:
+      create: true
+
   replicaCount: 2          # GCE Ingress + zero-downtime rolling updates
 
   image:
     repository: ghcr.io/dvarahq/dvara-gateway
     # PIN in production. Empty defaults to Chart.appVersion. Use the
-    # published GA tag (e.g. 1.12.0). Never :latest.
+    # published GA tag (e.g. 1.14.0). Never :latest.
     tag: ""
     pullPolicy: IfNotPresent
 
