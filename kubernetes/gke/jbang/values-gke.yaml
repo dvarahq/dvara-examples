@@ -14,6 +14,14 @@ secrets:
 # A volume per gateway pod for its spool, config snapshot and certificate
 # (switches the gateway to a StatefulSet).
 llmGatewayServer:
+  # The gateway pods talk to each other over TLS on the cluster port. This
+  # install brings its own Secret (secrets.existingSecret), so since 1.14.0
+  # the chart makes the cluster certificate only when asked. It keeps the
+  # certificate across `helm upgrade`.
+  cluster:
+    tls:
+      create: true
+
   persistence:
     enabled: true
 
