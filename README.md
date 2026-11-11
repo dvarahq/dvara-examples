@@ -62,7 +62,7 @@ Older examples releases are listed on the [releases page](https://github.com/dva
 This release also covers Dvara 1.13.0. There was no examples release for it.
 
 - **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.14.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.14.0`). No renamed image, no new service, no moved port. Each Kubernetes values file renders with the 1.14.0 chart.
-- **DOKS and GKE:** these recipes bring their own Secret (`secrets.existingSecret`). Since 1.14.0 the chart then makes the gateway cluster certificate only when asked, and refuses to render without one. `values-doks.yaml`, `values-gke.yaml` and the jbang `values-gke.yaml` now set `llmGatewayServer.cluster.tls.create: true`, so the chart makes it as before and keeps it across `helm upgrade`.
+- **DOKS and GKE:** these recipes bring their own Secret (`secrets.existingSecret`). Since 1.13.0 the chart then makes the gateway cluster certificate only when asked, and refuses to render without one. `values-doks.yaml`, `values-gke.yaml` and the jbang `values-gke.yaml` now set `llmGatewayServer.cluster.tls.create: true`, so the chart makes it as before and keeps it across `helm upgrade`.
 - **x86 and ARM:** the gateway and Flightdeck images are built for both `amd64` and `arm64` under one tag, so the stacks run natively on Apple silicon and ARM nodes. The images are also smaller.
 - **Tracing:** the gateway sends traces over OTLP HTTP only. It refuses to start if gRPC export is set. None of these examples turns tracing on.
 - **Data residency:** the region variable is `DVARA_REGION_ID`. `DVARA_REGION` is not read.
