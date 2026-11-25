@@ -46,7 +46,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.14.0
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.16.0
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -77,7 +77,10 @@ services:
       DVARA_INTERNAL_ENROLMENT_ENABLED: "true"
       DVARA_INTERNAL_ENROLMENT_SERVER_NAMES: dvara-flightdeck,localhost
       DVARA_INTERNAL_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
-      DVARA_FLIGHTDECK_GATEWAY_URL: http://dvara-gateway:8080
+      # Registers the Gateway cluster the gateway names, at startup, when it is
+      # missing. Give its environment to a workspace under Runtime > Environments;
+      # until then the gateway accepts none of that workspace's keys.
+      DVARA_FLIGHTDECK_CLUSTER_NAME: ${DVARA_CLUSTER_NAME:-main}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dvara
       SPRING_DATASOURCE_USERNAME: dvara
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-dvara}
@@ -94,7 +97,7 @@ services:
       start_period: 120s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.14.0
+    image: ghcr.io/dvarahq/dvara-gateway:1.16.0
     platform: linux/amd64
     # `missing` pulls once on first `compose up` and reuses the local image
     # on every subsequent run — friendlier on flaky networks / repeat
@@ -120,6 +123,12 @@ services:
       DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
+      # The Gateway cluster this gateway joins. There is no default cluster:
+      # Flightdeck refuses a gateway that names none (cluster_required).
+      DVARA_DATA_PLANE_CONTROL_PLANE_CLUSTER: ${DVARA_CLUSTER_NAME:-main}
+      # The address Flightdeck's Playground sends calls to. Inside this Compose
+      # network that is the gateway's service name.
+      DVARA_DATA_PLANE_PUBLIC_URL: ${DVARA_GATEWAY_PUBLIC_URL:-http://dvara-gateway:8080}
       DVARA_DATA_PLANE_CONTROL_PLANE_SNAPSHOT_PATH: /var/lib/dvara/bundle-snapshot.json
       DVARA_LLM_GATEWAY_LOCAL_STORE_PATH: /var/lib/dvara/spool.db
       # A2A push notifications go through the gateway (1.8.5): a peer is given

@@ -36,6 +36,17 @@ Then:
 - Flightdeck: http://localhost:8090 (first visit redirects to `/setup` to create the owner account)
 - Playground: http://localhost:8090/playground (interactive prompt testing inside Flightdeck; disable in production with `DVARA_FLIGHTDECK_PLAYGROUND_ENABLED=false`)
 
+Before the first call (since 1.15.0):
+
+1. In Flightdeck, create a workspace under **Access → Workspaces**.
+2. Under **Runtime → Environments**, give the `main` environment to that workspace. `main` is the
+   gateway's cluster (`DVARA_CLUSTER_NAME`); until a workspace has its environment, the gateway
+   accepts none of that workspace's keys.
+3. In the workspace, create a key under **Keys → New Key** and call `http://localhost:8080/v1/...` with it.
+
+If the gateway's log says `cluster_required` or `cluster_unknown`, `DVARA_CLUSTER_NAME` is missing
+or differs between the two services.
+
 ## Requirements
 
 - Docker 20.10+ with Compose v2
@@ -57,8 +68,8 @@ account and no `docker login`.
 
 | Image | Description |
 |---|---|
-| `ghcr.io/dvarahq/dvara-gateway:1.14.0` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
-| `ghcr.io/dvarahq/dvara-flightdeck:1.14.0` | DVARA Console / admin dashboard (port `8090`) |
+| `ghcr.io/dvarahq/dvara-gateway:1.16.0` | Gateway server — LLM on `8080`, and the MCP and A2A paths |
+| `ghcr.io/dvarahq/dvara-flightdeck:1.16.0` | DVARA Console / admin dashboard (port `8090`) |
 
 Every stack here uses those two. **There is one artifact per application**, and every feature
 runs in it, including the MCP and A2A planes:
@@ -87,7 +98,7 @@ The published images today are **`linux/amd64` only** — every Dvara service in
 
 Native ARM builds are a planned follow-up. Once they land you can remove the `platform:` lines or leave them in place — the explicit pin still works against multi-arch manifests, it just stops being load-bearing.
 
-Tags: `latest` (current release) or a version tag (e.g. `1.14.0`).
+Tags: `latest` (current release) or a version tag (e.g. `1.16.0`).
 
 ## Documentation
 
