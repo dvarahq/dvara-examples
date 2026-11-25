@@ -50,10 +50,13 @@ so the first start takes longer.
    `http://localhost:8060/mcp` that speaks Streamable HTTP. It has three tools:
    `get_order_status`, `lookup_customer` (its result carries PII) and `delete_customer`
    (irreversible).
-3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.14.0).
-   Flightdeck reads `bootstrap.yaml` on first boot and creates the `quickstart` workspace and its
-   API key.
-4. **Creates the Flightdeck owner, signs in and imports `seed-config.json`**, which contains:
+3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.16.0).
+   Flightdeck reads `bootstrap.yaml` on first boot and creates the `quickstart` workspace. It also
+   registers the gateway's cluster, `main`, and the gateway joins it.
+4. **Creates the Flightdeck owner, signs in, gives the `main` environment to the workspace and
+   creates its API key** (into `.env` as `DEMO_API_KEY`). A key works on a gateway only through an
+   environment of the gateway's cluster, so the key is made after the environment. Then it
+   **imports `seed-config.json`**, which contains:
    - the MCP server registration, pointing at the demo server on the host
    - a policy that denies `delete_customer`
    - `pii.action: REDACT` on the workspace

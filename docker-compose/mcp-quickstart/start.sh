@@ -40,8 +40,8 @@ DVARA_ACTUATOR_METRICS_API_KEY=$(secret)
 DVARA_AUDIT_HMAC_SECRET=$(secret)
 DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD=$(secret)
 DB_PASSWORD=dvara
-# The workspace API key, seeded by bootstrap.yaml. Send it as Authorization: Bearer.
-DEMO_API_KEY=gw_$(openssl rand -hex 24)
+# The workspace API key. start.sh creates it in Flightdeck and fills it in. Send it as Authorization: Bearer.
+DEMO_API_KEY=
 # The Flightdeck owner start.sh creates. Sign in at $FLIGHTDECK with these.
 OWNER_EMAIL=owner@quickstart.local
 OWNER_PASSWORD=$(openssl rand -hex 12)
@@ -83,7 +83,7 @@ wait_for "$FLIGHTDECK/actuator/health/liveness" "Flightdeck"
 wait_for "$GATEWAY/actuator/health/liveness" "The gateway"
 
 # --- 4. Seed Flightdeck ------------------------------------------------------------------
-# bootstrap.yaml has already created the workspace and the API key. Everything else goes
+# bootstrap.yaml has already created the workspace. Everything else goes
 # in through the Console's own endpoints, as a signed-in owner would: create the owner,
 # sign in, then import seed-config.json (PII redaction, the MCP server, the deny policy).
 JAR="$STATE/cookies"
@@ -105,6 +105,30 @@ landing=$(fd -o /dev/null -w '%{redirect_url}' "$FLIGHTDECK/login" --data-urlenc
   --data-urlencode "email=$OWNER_EMAIL" --data-urlencode "password=$OWNER_PASSWORD")
 [[ $landing == *"/login"* ]] && fail "Could not sign in to Flightdeck as $OWNER_EMAIL. Run ./stop.sh --reset and start again."
 
+# Since 1.15.0 a workspace's keys work on a gateway only through an environment of the
+# gateway's cluster. Flightdeck registered the cluster at start (DVARA_CLUSTER_NAME, default
+# main) with one environment of the same name; give it to the quickstart workspace.
+CLUSTER="${DVARA_CLUSTER_NAME:-main}"
+sql() { docker compose exec -T postgres psql -U dvara -d dvara -tAc "$1"; }
+if [[ -z $(sql "select id from dvara_main.environments where workspace_id='quickstart' and platform_environment_id='$CLUSTER'") ]]; then
+  say "Giving the $CLUSTER environment to the quickstart workspace"
+  token=$(fd "$FLIGHTDECK/environments/all" | csrf)
+  fd -o /dev/null "$FLIGHTDECK/environments/all/$CLUSTER/workspaces" --data-urlencode "_csrf=$token" \
+    --data-urlencode workspaceId=quickstart
+  [[ -n $(sql "select id from dvara_main.environments where workspace_id='quickstart' and platform_environment_id='$CLUSTER'") ]] \
+    || fail "Could not give the $CLUSTER environment to the quickstart workspace. Do it under Runtime > Environments."
+fi
+
+# The key is made after the environment, so it belongs to it and the gateway serves it.
+if [[ -z ${DEMO_API_KEY:-} ]]; then
+  say "Creating the workspace API key"
+  token=$(fd "$FLIGHTDECK/workspaces/quickstart/keys" | csrf)
+  DEMO_API_KEY=$(fd "$FLIGHTDECK/workspaces/quickstart/keys" --data-urlencode "_csrf=$token" \
+    --data-urlencode name=quickstart-key | grep -oE 'gw_[0-9a-f]{20,}' | head -1)
+  [[ -n $DEMO_API_KEY ]] || fail "Could not create the workspace API key. Create one under Keys and set DEMO_API_KEY in .env."
+  sed -i.bak "s/^DEMO_API_KEY=.*/DEMO_API_KEY=$DEMO_API_KEY/" .env && rm -f .env.bak
+fi
+
 say "Importing the MCP server, the deny policy and PII redaction"
 token=$(fd "$FLIGHTDECK/config/import" | csrf)
 fd "$FLIGHTDECK/config/import/preview" --data-urlencode "_csrf=$token" --data-urlencode mode=merge \
@@ -119,7 +143,6 @@ fd -o /dev/null "$FLIGHTDECK/config/import/apply" --data-urlencode "_csrf=$token
 # start.sh makes that second person: a policy admin, whose invitation token it reads from
 # the database (the stack sends no email).
 POLICY_ID=no-destructive-tools
-sql() { docker compose exec -T postgres psql -U dvara -d dvara -tAc "$1"; }
 if [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") != ACTIVE ]]; then
   say "Activating the deny policy, approved by a second Flightdeck user ($APPROVER_EMAIL)"
   if [[ -z $(sql "select id from dvara_main.users where lower(email)=lower('$APPROVER_EMAIL')") ]]; then

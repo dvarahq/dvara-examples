@@ -2,7 +2,7 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.14.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.14.0)** — compatible with Dvara `1.14.0`.
+> **Latest release: [1.16.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.16.0)** — compatible with Dvara `1.16.0`.
 
 ## Contents
 
@@ -42,6 +42,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.16.0` | Dvara `1.16.0` |
 | `1.14.0` | Dvara `1.14.0` |
 | `1.12.0` | Dvara `1.12.0` |
 | `1.9.0` | Dvara `1.9.0` |
@@ -56,6 +57,16 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.16.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.16.0)
+
+This release also covers Dvara 1.15.0. There was no examples release for it.
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.16.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.16.0`). No renamed image, no new service, no moved port.
+- **The gateway names its cluster.** Since 1.15.0 there is no default cluster, and Flightdeck refuses a gateway that names none (`cluster_required`). Each Compose stack sets `DVARA_CLUSTER_NAME` (default `main`): Flightdeck registers that cluster at startup and the gateway joins it. The Helm chart does the same for the Kubernetes recipes.
+- **Give the cluster's environment to a workspace.** A new cluster's environment serves no workspace, so the gateway accepts none of its keys until you give it one under **Runtime → Environments**. The quick-start steps say so.
+- **`DVARA_FLIGHTDECK_GATEWAY_URL` is gone** from every stack. It binds nothing since 1.15.0. Instead each gateway reports its address, `DVARA_DATA_PLANE_PUBLIC_URL`, set to `http://dvara-gateway:8080` so Flightdeck's Playground can reach it (override with `DVARA_GATEWAY_PUBLIC_URL`).
+- **Some Flightdeck tools run on the gateway.** The policy dry-run, a credential's Test and a mock scenario's Run test need the stack's gateway to be running.
 
 ### [1.14.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.14.0)
 
