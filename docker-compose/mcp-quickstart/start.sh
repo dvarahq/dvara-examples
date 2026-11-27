@@ -159,8 +159,14 @@ if [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") != A
       --data-urlencode "password=$APPROVER_PASSWORD" --data-urlencode "confirmPassword=$APPROVER_PASSWORD"
   fi
 
+  # Since 1.17.0 a policy version must be tested on a gateway before its activation can be
+  # requested. Run one test on the policy's Test tab: a call to delete_customer, which it denies.
+  token=$(fd "$FLIGHTDECK/policies/$POLICY_ID?tab=test" | csrf)
+  fd -o /dev/null "$FLIGHTDECK/policies/$POLICY_ID/tests" --data-urlencode "_csrf=$token" \
+    --data-urlencode mcpServer=demo-tools --data-urlencode mcpTool=delete_customer
+
   version=$(sql "select version from dvara_main.policies where id='$POLICY_ID'")
-  token=$(fd "$FLIGHTDECK/policies/$POLICY_ID/edit" | csrf)
+  token=$(fd "$FLIGHTDECK/policies/$POLICY_ID" | csrf)
   fd -o /dev/null "$FLIGHTDECK/policies/$POLICY_ID/activation-requests" --data-urlencode "_csrf=$token" \
     --data-urlencode "expectedVersion=$version" --data-urlencode "reason=MCP quickstart"
   request=$(sql "select id from dvara_main.policy_activation_requests
@@ -172,7 +178,7 @@ if [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") != A
   curl -s -b "$APP" -c "$APP" -o /dev/null "$FLIGHTDECK/login" --data-urlencode "_csrf=$token" \
     --data-urlencode "email=$APPROVER_EMAIL" --data-urlencode "password=$APPROVER_PASSWORD"
   rversion=$(sql "select version from dvara_main.policy_activation_requests where id='$request'")
-  token=$(curl -s -b "$APP" -c "$APP" "$FLIGHTDECK/policies/$POLICY_ID/edit" | csrf)
+  token=$(curl -s -b "$APP" -c "$APP" "$FLIGHTDECK/policies/$POLICY_ID" | csrf)
   curl -s -b "$APP" -c "$APP" -o /dev/null "$FLIGHTDECK/policies/$POLICY_ID/activation-requests/$request/approve" \
     --data-urlencode "_csrf=$token" --data-urlencode "requestVersion=$rversion" --data-urlencode "reason=MCP quickstart"
   [[ $(sql "select status from dvara_main.policies where id='$POLICY_ID'") == ACTIVE ]] \

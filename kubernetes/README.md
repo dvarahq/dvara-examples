@@ -37,11 +37,11 @@ Chart is published as an OCI artifact:
 
 ```bash
 # Verify (Helm 3.8+):
-helm show chart oci://ghcr.io/dvarahq/charts/dvara --version 1.16.0
+helm show chart oci://ghcr.io/dvarahq/charts/dvara --version 1.17.0
 
 # Install (single-tenant example):
 helm install dvara oci://ghcr.io/dvarahq/charts/dvara \
-  --version 1.16.0 \
+  --version 1.17.0 \
   --namespace dvara \
   --values ./single-tenant/values.yaml \
   --set "secrets.enterpriseLicenseKey=$DVARA_LICENSE_KEY" \
@@ -69,9 +69,14 @@ kubectl port-forward -n dvara svc/dvara-flightdeck 8090:8090
 Open `http://localhost:8090/`:
 1. Walk `/setup` to create the founding platform owner
 2. Console → Workspaces → New workspace
-3. Portal → API Keys → New key (plaintext shown once; copy it)
-4. Portal → Credentials → Add credential (BYOK — paste the upstream provider key; AES-256-GCM at rest)
-5. `curl -H "Authorization: Bearer gw_…" http://<gateway-server-host>:8080/v1/chat/completions -d '{"model":"…","messages":[…]}'`
+3. Runtime → Environments → give the cluster's environment to the workspace
+4. The workspace's API Keys → New Key (plaintext shown once; copy it)
+5. Traffic → Credentials → Add Credential (BYOK — paste the upstream provider key; AES-256-GCM at rest)
+6. Set up a model (since 1.17.0 a gateway serves only the models its cluster lists, and a new cluster lists none, so
+   every call is refused with `model_not_on_cluster` until you do): Traffic → Providers → Add provider; on the
+   provider's Models page add the model and Release it; on the cluster's page (Runtime → Clusters) pick it under
+   Model to add and choose Add model. Details: [Set up a model before the first call](../docker-compose/README.md#set-up-a-model-before-the-first-call-since-1170).
+7. `curl -H "Authorization: Bearer gw_…" http://<gateway-server-host>:8080/v1/chat/completions -d '{"model":"…","messages":[…]}'`
 
 ## Probes — why no `/status`
 

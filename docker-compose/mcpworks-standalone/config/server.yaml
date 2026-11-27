@@ -1,0 +1,22 @@
+# One MCP server, served by the MCPWorks runtime with no Flightdeck and no gateway.
+# The runtime reads this file at start and loads an edit within about two seconds.
+apiVersion: mcp.dvarahq.com/v1alpha1
+kind: McpServer
+metadata:
+  name: orders                      # lower case; the server's name
+spec:
+  callers:                          # who may call, with which scopes
+    - id: demo-agent
+      scopes: [orders.read]
+      key: {scheme: env, name: MCP_CALLER_KEY}   # the key is read from the runtime's environment
+  tools:
+    - name: get_order_status
+      description: Reads the status of one order by its id, for example A-1001.
+      inputSchema:
+        type: object
+        required: [id]
+        properties:
+          id: {type: string}
+      http:
+        method: GET                 # GET is read-only and needs orders.read
+        url: http://orders-api/orders/{id}.json

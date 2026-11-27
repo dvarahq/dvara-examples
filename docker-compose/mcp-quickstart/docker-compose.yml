@@ -4,7 +4,8 @@
 #
 # NO LICENCE KEY AND NO PROVIDER KEY. Without a licence every feature runs, including
 # the MCP and A2A planes, limited to 3 workspaces and 100,000 calls a month, for
-# non-production use. The mock provider answers mock/* models, so /v1 works too.
+# non-production use. The MCP calls need no model. A /v1 model call is refused
+# (model_not_on_cluster) until a model is set up for the cluster: see ../README.md.
 #
 # The gateway has no database: Flightdeck is the only service on PostgreSQL. The
 # gateway enrols with it, reads its configuration from it, and sends audit and usage
@@ -27,7 +28,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.16.0
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.17.0
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -82,7 +83,7 @@ services:
       start_period: 120s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.16.0
+    image: ghcr.io/dvarahq/dvara-gateway:1.17.0
     platform: linux/amd64
     # `missing` pulls once on first `compose up` and reuses the local image
     # on every subsequent run — friendlier on flaky networks / repeat
@@ -106,7 +107,6 @@ services:
       # reads its configuration and licence from Flightdeck and sends its
       # audit and usage records back through the spool below.
       DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
-      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
       # The Gateway cluster this gateway joins. There is no default cluster:
       # Flightdeck refuses a gateway that names none (cluster_required).
@@ -132,7 +132,8 @@ services:
       DVARA_AUDIT_HMAC_SECRET: ${DVARA_AUDIT_HMAC_SECRET}
       # No DVARA_PII_TOKEN_ENCRYPTION_MASTER_PASSWORD here: the gateway
       # fetches each workspace's PII key from Flightdeck, which holds it.
-      # mock/* models answer without a provider account.
+      # The mock provider answers without a provider account. In 1.17.0 a cluster
+      # cannot list a mock model yet, so the gateway refuses mock calls too.
       MOCK_PROVIDER_ENABLED: "true"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     # The demo MCP server runs on the host (jbang, port 8060). Docker Desktop resolves

@@ -62,14 +62,16 @@ kubectl -n dvara get pods
 
 # Console (port-forward bypasses the LB/cert while DNS propagates):
 kubectl -n dvara port-forward svc/dvara-flightdeck 8090:8090
-open http://localhost:8090/      # walk /setup → create the founding owner → a tenant + API key
+open http://localhost:8090/      # walk /setup → create the founding owner → a workspace + API key
 
-# First request (Mock, or a BYOK provider credential added in the Console):
+# Set up a model first (1.17.0): a gateway serves only the models its cluster lists, and a new
+# cluster lists none. Add a provider and its credential, release a model on the provider's Models
+# page and add it on the cluster's page. See ../../docker-compose/README.md.
 curl -H 'Authorization: Bearer gw_…' http://localhost:8080/v1/chat/completions \
-  -d '{"model":"mock/test","messages":[{"role":"user","content":"hi"}]}'
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, then fire a request through the gateway and confirm the new routing takes effect **without restarting any pod** (allow a few seconds). This proves the gateway picked up the change from Flightdeck: since 1.8.2 the gateway has no database, and a change reaches it in about 10 seconds. Only Flightdeck connects to Cloud SQL, directly over the private IP or behind a pooler in any mode.
+**Config hot-reload (the acceptance check):** add a model on the cluster's page in the Console (or change its routing with **Edit routing**), then fire a request through the gateway and confirm the change takes effect **without restarting any pod** (allow a few seconds). This proves the gateway picked up the change from Flightdeck: since 1.8.2 the gateway has no database, and a change reaches it in about 10 seconds. Only Flightdeck connects to Cloud SQL, directly over the private IP or behind a pooler in any mode.
 
 ## Workload Identity for secrets (hardened path)
 
@@ -83,7 +85,7 @@ This path needs the GKE Secret Manager CSI provider **and** a CSI volume mount o
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.16.0`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
+`deploy.sh` and `values-gke.yaml` default to a published GA tag (`1.17.0`). Never run `:latest` in production. Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match.
 
 ## Related
 

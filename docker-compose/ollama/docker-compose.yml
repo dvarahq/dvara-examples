@@ -9,9 +9,13 @@
 #   cp .env.example .env
 #   docker compose up -d
 #   docker compose exec ollama ollama pull llama3.2
+#   # In Flightdeck (1.17.0): add the ollama provider with base URL
+#   # http://ollama:11434, add and release llama3.2 on its Models page, and add
+#   # it on the main cluster's page. Until then the call below is refused with
+#   # model_not_on_cluster. Steps: ../README.md, "Set up a model before the first call".
 #   curl -s -X POST http://localhost:8080/v1/chat/completions \
-#     -H "Content-Type: application/json" \
-#     -d '{"model": "ollama/llama3.2", "messages": [{"role": "user", "content": "Hello!"}]}' | jq .
+#     -H "Authorization: Bearer gw_..." -H "Content-Type: application/json" \
+#     -d '{"model": "llama3.2", "messages": [{"role": "user", "content": "Hello!"}]}' | jq .
 
 services:
   postgres:
@@ -54,7 +58,7 @@ services:
       retries: 3
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.16.0
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.17.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -105,7 +109,7 @@ services:
       start_period: 120s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.16.0
+    image: ghcr.io/dvarahq/dvara-gateway:1.17.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -125,7 +129,6 @@ services:
       # reads its configuration and licence from Flightdeck and sends its
       # audit and usage records back through the spool below.
       DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
-      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
       # The Gateway cluster this gateway joins. There is no default cluster:
       # Flightdeck refuses a gateway that names none (cluster_required).

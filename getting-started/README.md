@@ -5,8 +5,13 @@ Simple runnable scripts that demonstrate Dvara Gateway's OpenAI-compatible API. 
 ## Prerequisites
 
 1. **Dvara Gateway running** — follow the [Quick Start](../docker-compose/quick-start/) to get the stack up
-2. **A tenant and API key** — create one from the DVARA Console at `http://localhost:8090`
+2. **A workspace and API key** — create them in the DVARA Console at `http://localhost:8090`
 3. **At least one provider configured** (e.g. `OPENAI_API_KEY` in your `.env`)
+4. **The models the scripts call, on the gateway's cluster** — since 1.17.0 a gateway serves only
+   the models its cluster lists, and a new cluster lists none. Add `gpt-4o` (and
+   `claude-sonnet-4-5` for `multi_provider.py`) as in
+   [Set up a model before the first call](../docker-compose/README.md#set-up-a-model-before-the-first-call-since-1170).
+   Until then each call is refused with `model_not_on_cluster`.
 
 ## Setup
 

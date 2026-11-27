@@ -2,13 +2,13 @@
 
 Reference configurations, compose files, and SDK integration samples for the [Dvara LLM Gateway](https://dvarahq.com).
 
-> **Latest release: [1.16.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.16.0)** — compatible with Dvara `1.16.0`.
+> **Latest release: [1.17.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.17.0)** — compatible with Dvara `1.17.0`.
 
 ## Contents
 
 | Directory | Description |
 |---|---|
-| **[docker-compose/](docker-compose/)** | Ready-to-run Docker Compose stacks (quick-start, **mcp-quickstart**, multi-provider, ollama, with-email) |
+| **[docker-compose/](docker-compose/)** | Ready-to-run Docker Compose stacks (quick-start, **mcp-quickstart**, **mcpworks-standalone**, multi-provider, ollama, with-email) |
 | **[getting-started/](getting-started/)** | First-request scripts in Python and Node.js — basic chat, streaming, structured outputs, multi-provider |
 | **[sdk-integrations/](sdk-integrations/)** | Framework examples — OpenAI SDK, LangChain, LiteLLM, Pydantic AI, Vercel AI, Spring AI, LangChain4j |
 
@@ -27,8 +27,13 @@ docker compose up -d
 
 Gateway ready at http://localhost:8080, DVARA Console at http://localhost:8090.
 
+Before the first call, set up the workspace, its key and a model in the Console. Since 1.17.0 a
+gateway serves only the models its cluster lists, and a new cluster lists none: until you add one,
+every call is refused with `model_not_on_cluster`. The steps are in
+[docker-compose/README.md](docker-compose/README.md#set-up-a-model-before-the-first-call-since-1170).
+
 ```bash
-# Create a workspace and API key in the Console, then:
+# Create a workspace and API key in the Console, add gpt-4o to the cluster, then:
 export DVARA_API_KEY="gw_<your-key>"
 
 cd ../../getting-started/python
@@ -42,6 +47,7 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 
 | Examples release | Compatible Dvara version |
 |---|---|
+| `1.17.0` | Dvara `1.17.0` |
 | `1.16.0` | Dvara `1.16.0` |
 | `1.14.0` | Dvara `1.14.0` |
 | `1.12.0` | Dvara `1.12.0` |
@@ -57,6 +63,18 @@ Each release of these examples is pinned to a specific Dvara LLM Gateway version
 Older examples releases are listed on the [releases page](https://github.com/dvarahq/dvara-examples/releases).
 
 ## Changelog
+
+### [1.17.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.17.0)
+
+- **Version bump** — every Compose stack, Kubernetes/Helm recipe and the jbang GKE tooling now pin `1.17.0` (chart `oci://ghcr.io/dvarahq/charts/dvara:1.17.0`). No renamed image, no moved port. Each Kubernetes values file renders with the 1.17.0 chart.
+- **Set up a model before the first call.** A gateway now serves only the models its cluster lists, and a new cluster lists none. Until you add one, every model call is refused with `model_not_on_cluster` (HTTP `502` in 1.17.0), and `/v1/models` lists nothing. In Flightdeck: add the provider on **Providers** (also when its key is in `.env`), add and release the model on the provider's **Models** page, then add it in the **Models** section of the cluster's page. [docker-compose/README.md](docker-compose/README.md#set-up-a-model-before-the-first-call-since-1170) has the steps. A later release gives every new cluster a default mock model, so the first call works without them.
+- **Call a model by its own name.** The cluster serves the names you add, so `ollama_test.py` and the ollama stack now send `llama3.2`, not `ollama/llama3.2`. For Ollama, type the model on its **Models** page with `0` for both prices.
+- **No mock model on a cluster yet.** The mcp-quickstart turns the mock provider on, but in 1.17.0 a cluster cannot list a mock model, so its `/v1` model calls are refused. Its MCP calls need no model and work as before.
+- **No Routes page and no typed prices.** Routes are set per model on the cluster's page (**Edit routing**). Prices come from the released models; the **Model Pricing** page only shows them.
+- **New: [`mcpworks-standalone/`](docker-compose/mcpworks-standalone/).** The MCPWorks runtime `ghcr.io/dvarahq/mcp-run:1.17.1` serves one MCP server from one `server.yaml`, with no Flightdeck and no gateway. `call.sh` makes one tool call. The image is not public yet: you need pull access to it.
+- **mcp-quickstart:** a policy version must now be tested on a gateway before its activation can be requested. `start.sh` runs one test on the policy's **Test** tab (a call to `delete_customer`, which it denies) before it asks for activation. `demo.sh` passes all four calls as before.
+- **The gateway's enrolment directory has a default.** With an address and a shared secret or token set, a gateway uses `/var/lib/dvara/enrolment`, on the `gateway-data` volume. The Compose stacks no longer set `DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY`.
+- **Drift checks are scheduled on Flightdeck.** If you set `dvara.llm-gateway.cache.drift.check-schedule` on a gateway, it is no longer read. Set `DVARA_FLIGHTDECK_GOLDENPROMPTS_DRIFTCHECKSCHEDULE` (a cron expression, off by default) on Flightdeck instead. None of these examples sets either.
 
 ### [1.16.0](https://github.com/dvarahq/dvara-examples/releases/tag/1.16.0)
 

@@ -13,7 +13,14 @@
 # Usage:
 #   cp .env.example .env   # edit with whichever keys you have
 #   docker compose up -d
-#   curl -s http://localhost:8080/v1/models | jq '.data[].id'
+#   curl -s http://localhost:8080/v1/models -H "Authorization: Bearer gw_..." | jq '.data[].id'
+#
+# BEFORE THE FIRST MODEL CALL (1.17.0): a gateway serves only the models its
+# cluster lists, and a new cluster lists none. In Flightdeck, add each provider
+# (openai, anthropic) on the Providers page, add and release its models on its
+# Models page, and add them on the main cluster's page. Until then every call
+# is refused with model_not_on_cluster and /v1/models lists nothing. The steps
+# are in ../README.md, "Set up a model before the first call".
 
 services:
   postgres:
@@ -34,7 +41,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.16.0
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.17.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -85,7 +92,7 @@ services:
       start_period: 120s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.16.0
+    image: ghcr.io/dvarahq/dvara-gateway:1.17.0
     platform: linux/amd64
     pull_policy: always
     ports:
@@ -105,7 +112,6 @@ services:
       # reads its configuration and licence from Flightdeck and sends its
       # audit and usage records back through the spool below.
       DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
-      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
       # The Gateway cluster this gateway joins. There is no default cluster:
       # Flightdeck refuses a gateway that names none (cluster_required).
