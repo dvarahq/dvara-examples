@@ -11,6 +11,12 @@ Six sample `gateway.yaml` configurations covering common shapes. Drop one in the
 | **`gateway.full.yaml`** | All six providers (incl. Bedrock and Mock), weighted route with fallback, multi-tenant API keys, rate limits. The "documentation by example" version. |
 | **`gateway.bootstrap.yaml`** | Database-seed shape — `tenants:`, `api_keys:`, `routes:` at startup via `DVARA_BOOTSTRAP_FILE`. Idempotent on subsequent boots. |
 
+> **Since 1.17.0, routes are set on each gateway cluster in Flightdeck.** Flightdeck skips the `routes:` of a
+> bootstrap file, with a warning in its log, and a route in a gateway's own `gateway.yaml` adds no model to a
+> gateway that gets its configuration from Flightdeck: such a gateway serves only the models its cluster lists. See
+> [Set up a model before the first call](../docker-compose/README.md#set-up-a-model-before-the-first-call-since-1170).
+> The `routes:` in these files still apply to a gateway that runs without Flightdeck.
+
 ## How the gateway loads these
 
 Two distinct loaders:

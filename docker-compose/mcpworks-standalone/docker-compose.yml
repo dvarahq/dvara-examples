@@ -1,0 +1,51 @@
+# MCPWorks standalone: one MCP server from one file, with no Flightdeck and no gateway.
+#
+# The MCPWorks runtime (ghcr.io/dvarahq/mcp-run) reads config/server.yaml and serves its
+# tools at http://localhost:8095/mcp. A small nginx stands in for the API the tool calls.
+# Callers send the key from .env as a bearer token.
+#
+# Usage:
+#   echo "MCP_CALLER_KEY=$(openssl rand -hex 24)" > .env
+#   docker compose up -d
+#   ./call.sh
+#
+# Headless mode: the runtime has no owner and no grants, so it lets in every caller the
+# file lists, with its key. Nothing is signed: DVARA_MCP_BUNDLE_TRUST_MODE=file-unsigned
+# says you accept that. Use this for a demo or one team's server.
+
+services:
+  mcp-run:
+    image: ghcr.io/dvarahq/mcp-run:1.17.1
+    platform: linux/amd64
+    pull_policy: missing
+    ports:
+      - "${MCP_PORT:-8095}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      # Serve the server.yaml in the mounted folder, not a signed bundle.
+      DVARA_MCP_SERVER_FILE: /etc/dvara/server.yaml
+      DVARA_MCP_BUNDLE_TRUST_MODE: file-unsigned
+      # Let in the callers the file lists, by their keys.
+      DVARA_MCP_INGRESS_MODE: api-key
+      # Undelivered audit and the requests in flight.
+      DVARA_MCP_LOCAL_STORE_PATH: /var/lib/dvara-mcp/local-store.db
+      # The demo-agent caller's key. At least 32 characters.
+      MCP_CALLER_KEY: ${MCP_CALLER_KEY:?set MCP_CALLER_KEY in .env (openssl rand -hex 24)}
+    volumes:
+      # Mount the folder, not the file: editors save by writing a new file, and a
+      # mount of one file keeps seeing the old one.
+      - ./config:/etc/dvara:ro
+      - mcp-state:/var/lib/dvara-mcp
+    depends_on:
+      - orders-api
+
+  # The API the get_order_status tool calls. Any HTTP API works the same way.
+  orders-api:
+    image: nginx:1.29-alpine
+    volumes:
+      - ./upstream:/usr/share/nginx/html:ro
+
+volumes:
+  mcp-state:

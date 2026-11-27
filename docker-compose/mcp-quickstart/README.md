@@ -50,7 +50,7 @@ so the first start takes longer.
    `http://localhost:8060/mcp` that speaks Streamable HTTP. It has three tools:
    `get_order_status`, `lookup_customer` (its result carries PII) and `delete_customer`
    (irreversible).
-3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.16.0).
+3. **Starts PostgreSQL, Flightdeck and the gateway** (`docker-compose.yml`, DVARA 1.17.0).
    Flightdeck reads `bootstrap.yaml` on first boot and creates the `quickstart` workspace. It also
    registers the gateway's cluster, `main`, and the gateway joins it.
 4. **Creates the Flightdeck owner, signs in, gives the `main` environment to the workspace and
@@ -60,10 +60,13 @@ so the first start takes longer.
    - the MCP server registration, pointing at the demo server on the host
    - a policy that denies `delete_customer`
    - `pii.action: REDACT` on the workspace
-5. **Activates the policy with a second person's approval.** An import saves a policy as a
-   draft, and Flightdeck makes a policy live only when someone other than the requester approves
-   it. `start.sh` invites a policy admin (`approver@quickstart.local`), requests the activation as
-   the owner and approves it as the policy admin.
+5. **Tests the policy, then activates it with a second person's approval.** An import saves a
+   policy as a draft. Since 1.17.0 a policy version must be tested on a gateway before its
+   activation can be requested, so `start.sh` runs one test on the policy's **Test** tab: a call
+   to `delete_customer`, which the policy denies. Flightdeck makes a policy live only when
+   someone other than the requester approves it. `start.sh` invites a policy admin
+   (`approver@quickstart.local`), requests the activation as the owner and approves it as the
+   policy admin.
 6. **Syncs the server's tool catalog** and waits until the gateway lists the tools.
 
 Run it again at any time. It skips what already exists and re-applies the configuration.
@@ -80,6 +83,19 @@ Point any client that speaks Streamable HTTP at the gateway:
 
 To govern your own MCP server, add it in Flightdeck under **MCP → Servers** and select
 **Sync Tools**. Its tools appear on the same endpoint as `<serverId>__<tool>`.
+
+## Model calls
+
+The MCP calls need no model. The gateway also answers `/v1` model calls with the same key, but
+since 1.17.0 only for models its cluster lists, and this stack lists none: a model call is refused
+with `model_not_on_cluster`. The mock provider is on, but in 1.17.0 a cluster cannot list a mock
+model yet. To call a real model, add a provider key to `.env` (for example `OPENAI_API_KEY`) and
+follow [Set up a model before the first call](../README.md#set-up-a-model-before-the-first-call-since-1170).
+
+## Run the MCP server without the gateway
+
+[`../mcpworks-standalone/`](../mcpworks-standalone/) runs an MCP server on the MCPWorks runtime
+from one `server.yaml`, with no Flightdeck and no gateway.
 
 ## Licence
 

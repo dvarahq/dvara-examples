@@ -49,7 +49,7 @@ services:
       retries: 5
 
   dvara-flightdeck:
-    image: ghcr.io/dvarahq/dvara-flightdeck:1.16.0
+    image: ghcr.io/dvarahq/dvara-flightdeck:1.17.0
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -135,7 +135,7 @@ services:
       start_period: 120s
       retries: 3
   dvara-gateway:
-    image: ghcr.io/dvarahq/dvara-gateway:1.16.0
+    image: ghcr.io/dvarahq/dvara-gateway:1.17.0
     platform: linux/amd64
     pull_policy: missing
     ports:
@@ -155,7 +155,6 @@ services:
       # reads its configuration and licence from Flightdeck and sends its
       # audit and usage records back through the spool below.
       DVARA_DATA_PLANE_CONTROL_PLANE_BASE_URL: https://dvara-flightdeck:8443
-      DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_DIRECTORY: /var/lib/dvara/enrolment
       DVARA_DATA_PLANE_CONTROL_PLANE_ENROLMENT_SHARED_SECRET: ${DVARA_ENROLMENT_SECRET:?set DVARA_ENROLMENT_SECRET in .env (openssl rand -base64 32), the same value for both services}
       # The Gateway cluster this gateway joins. There is no default cluster:
       # Flightdeck refuses a gateway that names none (cluster_required).

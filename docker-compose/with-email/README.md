@@ -24,6 +24,11 @@ docker compose ps          # all 3 services should be healthy
 open http://localhost:8090  # first visit → /setup
 ```
 
+Before the first model call, add a model to the gateway's cluster in Flightdeck. Since 1.17.0 a
+gateway serves only the models its cluster lists, and a new cluster lists none, so until then every
+call is refused with `model_not_on_cluster`. The steps are in
+[Set up a model before the first call](../README.md#set-up-a-model-before-the-first-call-since-1170).
+
 The default `.env.example` ships with `DVARA_FLIGHTDECK_EMAIL_TRANSPORT=log` — emails render to flightdeck's stdout so you can poke at the full flow without external dependencies.
 
 ## Verifying email delivery

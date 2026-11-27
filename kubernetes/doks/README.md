@@ -67,11 +67,11 @@ kubectl -n dvara port-forward svc/dvara-flightdeck 8090:8090 &
 open http://localhost:8090/                                  # /setup → tenant + API key
 ```
 
-**Config hot-reload (the acceptance check):** create or edit a route in the Console, fire a request through the gateway, and confirm the new routing takes effect **without restarting any pod** (allow about 10 seconds) — proof the gateway picked up the change from Flightdeck.
+**Config hot-reload (the acceptance check):** add a model on the cluster's page in the Console (or change its routing with **Edit routing**), fire a request through the gateway, and confirm the change takes effect **without restarting any pod** (allow about 10 seconds) — proof the gateway picked up the change from Flightdeck.
 
 ## Pinning the image tag
 
-`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.16.0`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match. Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
+`deploy.sh` and `values-doks.yaml` default to a published GA tag (`1.17.0`). Never `:latest` in production (non-reproducible, no clean rollback). Browse tags at the [GHCR package page](https://github.com/orgs/dvarahq/packages?repo_name=dvara); set `IMAGE_TAG` / `CHART_VERSION` to match. Don't pin a tag that hasn't shipped — pods fail with `ImagePullBackOff`.
 
 ## Related
 
